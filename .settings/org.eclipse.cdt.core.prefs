@@ -1,0 +1,14 @@
+eclipse.preferences.version=1
+environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.1155602884/CWD/delimiter=\:
+environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.1155602884/CWD/operation=replace
+environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.1155602884/CWD/value=/home/tania/LocalHome/Workspaces/Eclipse-CC/daisy/Debug
+environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.1155602884/PATH/delimiter=\:
+environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.1155602884/PATH/operation=replace
+environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.1155602884/PATH/value=${HOME}/rpi/tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64/bin\:/home/tania/.gvm/vertx/current/bin\:/home/tania/.gvm/springboot/current/bin\:/home/tania/.gvm/lazybones/current/bin\:/home/tania/.gvm/jbake/current/bin\:/home/tania/.gvm/groovyserv/current/bin\:/home/tania/.gvm/groovy/current/bin\:/home/tania/.gvm/griffon/current/bin\:/home/tania/.gvm/grails/current/bin\:/home/tania/.gvm/gradle/current/bin\:/home/tania/.gvm/glide/current/bin\:/home/tania/.gvm/gaiden/current/bin\:/home/tania/.gvm/crash/current/bin\:/home/tania/.gvm/asciidoctorj/current/bin\:/home/tania/bin\:/usr/local/bin\:/usr/bin\:/bin\:/usr/local/games\:/usr/games
+environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.1155602884/append=true
+environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.1155602884/appendContributed=true
+environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.496892034/PATH/delimiter=\:
+environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.496892034/PATH/operation=replace
+environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.496892034/PATH/value=${HOME}/rpi/tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64/arm-linux-gnueabihf/bin\:/home/tania/.gvm/vertx/current/bin\:/home/tania/.gvm/springboot/current/bin\:/home/tania/.gvm/lazybones/current/bin\:/home/tania/.gvm/jbake/current/bin\:/home/tania/.gvm/groovyserv/current/bin\:/home/tania/.gvm/groovy/current/bin\:/home/tania/.gvm/griffon/current/bin\:/home/tania/.gvm/grails/current/bin\:/home/tania/.gvm/gradle/current/bin\:/home/tania/.gvm/glide/current/bin\:/home/tania/.gvm/gaiden/current/bin\:/home/tania/.gvm/crash/current/bin\:/home/tania/.gvm/asciidoctorj/current/bin\:/home/tania/bin\:/usr/local/bin\:/usr/bin\:/bin\:/usr/local/games\:/usr/games
+environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.496892034/append=true
+environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.496892034/appendContributed=true
