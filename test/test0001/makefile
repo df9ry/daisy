@@ -15,26 +15,27 @@
 #     You should have received a copy of the GNU General Public License
 #     along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
 
-ifdef ComSpec
-    RM := del /F /Q
-else
-    RM := rm -f
-endif
+include ../../environment.mk
 
 # All Target
-all: $(TARGET_LOC)/test0001
+all: $(CONFIGURATION)/test0001
 
 # Tool invocations
-$(TARGET_LOC)/test0001:
+$(CONFIGURATION)/test0001:
 	@echo 'Building target: $@'
-	@echo 'Invoking: Cross GCC Linker'
-	arm-linux-gnueabihf-gcc -o $@ test0001.c
+ifeq ($(wildcard $(CONFIGURATION)),)
+	-@$(MKDIR) $(CONFIGURATION)
+endif
+	@echo 'Invoking: Cross GCC Compiler and Linker'
+	$(GCC) -o $@ test0001.c
 	@echo 'Finished building target: $@'
-	@echo ' '
+	-@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) "$(TARGET_LOC)/test0001"
+ifneq ($(wildcard $(CONFIGURATION)),)
+	$(RMDIR) $(CONFIGURATION)
+endif
 	-@echo ' '
 
 .PHONY: all clean

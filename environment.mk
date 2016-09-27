@@ -15,13 +15,17 @@
 #     You should have received a copy of the GNU General Public License
 #     along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
 
-.PHONY: all clean tests
+CONFIGURATION  ?= Debug
+TOOLSET_PREFIX ?= arm-linux-gnueabihf-
 
-all: tests
+GCC            := $(TOOLSET_PREFIX)gcc
 
-tests:
-	$(MAKE) -C test all
-	
-clean:
-	$(MAKE) -C test clean
-	
+ifdef ComSpec
+    RM    := del /f /q
+    RMDIR := rmdir /s /q
+    MKDIR := mkdir
+else
+    RM    := rm -f
+    RMDIR := rm -rf
+    MKDIR := mkdir
+endif

@@ -15,12 +15,22 @@
 #     You should have received a copy of the GNU General Public License
 #     along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
 
-.PHONY: all clean   
+SUBDIRS := $(wildcard test*/.)
+TARGETS := all clean
 
-all: test0001
+SUBDIRS_TARGETS := \
+    $(foreach t,$(TARGETS),$(addsuffix $t,$(SUBDIRS)))
 
-all:
-	make -C test0001 all
-	
-clean:
-	make -C test0001 clean 
+.PHONY: $(TARGETS) $(SUBDIRS_TARGETS)
+
+# static pattern rule, expands into:
+# all clean : % : foo/.% bar/.%
+$(TARGETS) : % : $(addsuffix %,$(SUBDIRS))
+	@echo 'Done "$*" target'
+
+# here, for foo/.all:
+#   $(@D) is foo
+#   $(@F) is .all, with leading period
+#   $(@F:.%=%) is just all
+$(SUBDIRS_TARGETS) :
+	$(MAKE) -C $(@D) $(@F:.%=%)
