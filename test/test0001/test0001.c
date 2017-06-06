@@ -1,4 +1,4 @@
-/* Copyright 2016 Tania Hagn
+/* Copyright 2017 Tania Hagn
  *
  * This file is part of Daisy.
  *
