@@ -15,26 +15,29 @@
 #     You should have received a copy of the GNU General Public License
 #     along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
 
-.PHONY: all driver snull tests clean kernel kernel_clean
+include ../environment.mk
 
-all: driver
+# All Target
+all:
+	@echo 'Invoking: Module daisy build'
+ifeq ($(wildcard $(CONFIGURATION)),)
+	-@$(MKDIR) $(CONFIGURATION)
+endif
+	$(LN) ${CURDIR}/*.[hc] $(CONFIGURATION)/
+	$(LN) ${CURDIR}/Makefile_Template $(CONFIGURATION)/Makefile
+	@echo 'Invoking: Cross GCC module build'
+	$(MAKE) ARCH=arm CROSS_COMPILE=$(TOOLSET_PREFIX) \
+		-C $(KERNEL_SRC) \
+		M=${CURDIR}/$(CONFIGURATION) modules
+	@echo 'Finished building module daisy'
+	-@echo ' '
 
-driver:
-	$(MAKE) -C driver all
-
-snull:
-	$(MAKE) -C test/test0003 all
-
-tests:
-	$(MAKE) -C test all
-	
 clean:
-	$(MAKE) -C driver clean
-	$(MAKE) -C test   clean
-	
-kernel:
-	$(MAKE) -C kernel all
-	
-kernel_clean:
-	$(MAKE) -C kernel clean
-	
+ifneq ($(wildcard $(CONFIGURATION)),)
+	$(MAKE) -C $(KERNEL_SRC) \
+		M=${CURDIR}/$(CONFIGURATION) clean
+	$(RMDIR) $(CONFIGURATION)
+endif
+	-@echo ' '
+
+.PHONY: all clean
