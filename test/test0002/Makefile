@@ -15,13 +15,30 @@
 #     You should have received a copy of the GNU General Public License
 #     along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
 
-.PHONY: all clean tests
+include ../../environment.mk
 
-all: tests
+# All Target
+all:
+	@echo 'Invoking: Module hello build'
+ifeq ($(wildcard $(CONFIGURATION)),)
+	-@$(MKDIR) $(CONFIGURATION)
+endif
+	$(CP) *.c $(CONFIGURATION)
+	@echo 'obj-m := hello.o' > $(CONFIGURATION)/Makefile
+	@echo 'Invoking: Cross GCC module build'
+	$(MAKE) ARCH=arm CROSS_COMPILE=$(TOOLSET_PREFIX) \
+		-C $(KERNEL_SRC) \
+		M=${CURDIR}/$(CONFIGURATION) modules
+	$(RM) $(CONFIGURATION)/*.c
+	@echo 'Finished building module hello'
+	-@echo ' '
 
-tests:
-	$(MAKE) -C test all
-	
 clean:
-	$(MAKE) -C test clean
-	
+ifneq ($(wildcard $(CONFIGURATION)),)
+	$(MAKE) -C $(KERNEL_SRC) \
+		M=${CURDIR}/$(CONFIGURATION) clean
+	$(RMDIR) $(CONFIGURATION)
+endif
+	-@echo ' '
+
+.PHONY: all clean
