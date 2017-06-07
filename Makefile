@@ -15,9 +15,12 @@
 #     You should have received a copy of the GNU General Public License
 #     along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
 
-.PHONY: all clean tests kernel kernel_clean
+.PHONY: all snull clean tests kernel kernel_clean
 
-all: tests
+all: snull
+
+snull:
+	$(MAKE) -C test/test0003 all
 
 tests:
 	$(MAKE) -C test all

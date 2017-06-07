@@ -15,21 +15,29 @@
 #     You should have received a copy of the GNU General Public License
 #     along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
 
-CONFIGURATION  ?= Debug
-TOOLSET_PREFIX ?= arm-linux-gnueabihf-
+include ../../environment.mk
 
-GCC            := $(TOOLSET_PREFIX)gcc
-
-ifdef ComSpec
-    RM    := del /f /q
-    RMDIR := rmdir /s /q
-    MKDIR := mkdir
-    CP    := copy
-    LN    := copy
-else
-    RM    := rm -f
-    RMDIR := rm -rf
-    MKDIR := mkdir
-    CP    := cp
-    LN    := ln -sf
+# All Target
+all:
+	@echo 'Invoking: Module snull build'
+ifeq ($(wildcard $(CONFIGURATION)),)
+	-@$(MKDIR) $(CONFIGURATION)
 endif
+	$(LN) ${CURDIR}/snull.[hc] $(CONFIGURATION)/
+	@echo 'obj-m := snull.o' > $(CONFIGURATION)/Makefile
+	@echo 'Invoking: Cross GCC module build'
+	$(MAKE) ARCH=arm CROSS_COMPILE=$(TOOLSET_PREFIX) \
+		-C $(KERNEL_SRC) \
+		M=${CURDIR}/$(CONFIGURATION) modules
+	@echo 'Finished building module snull'
+	-@echo ' '
+
+clean:
+ifneq ($(wildcard $(CONFIGURATION)),)
+	$(MAKE) -C $(KERNEL_SRC) \
+		M=${CURDIR}/$(CONFIGURATION) clean
+	$(RMDIR) $(CONFIGURATION)
+endif
+	-@echo ' '
+
+.PHONY: all clean
