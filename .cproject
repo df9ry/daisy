@@ -48,6 +48,9 @@
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.cross.archiver.721120909" name="Cross GCC Archiver" superClass="cdt.managedbuild.tool.gnu.cross.archiver"/>
 							<tool id="cdt.managedbuild.tool.gnu.cross.assembler.604828960" name="Cross GCC Assembler" superClass="cdt.managedbuild.tool.gnu.cross.assembler">
+								<option id="gnu.both.asm.option.include.paths.1460094550" name="Include paths (-I)" superClass="gnu.both.asm.option.include.paths" valueType="includePath">
+									<listOptionValue builtIn="false" value="../."/>
+								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.1834562939" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
 							</tool>
 						</toolChain>
@@ -79,8 +82,9 @@
 							<tool id="cdt.managedbuild.tool.gnu.cross.c.compiler.1064244229" name="Cross GCC Compiler" superClass="cdt.managedbuild.tool.gnu.cross.c.compiler">
 								<option defaultValue="gnu.c.optimization.level.most" id="gnu.c.compiler.option.optimization.level.152316302" name="Optimization Level" superClass="gnu.c.compiler.option.optimization.level" useByScannerDiscovery="false" valueType="enumerated"/>
 								<option id="gnu.c.compiler.option.debugging.level.1847640779" name="Debug Level" superClass="gnu.c.compiler.option.debugging.level" useByScannerDiscovery="false" value="gnu.c.debugging.level.none" valueType="enumerated"/>
-								<option id="gnu.c.compiler.option.include.paths.238775737" superClass="gnu.c.compiler.option.include.paths" valueType="includePath">
+								<option id="gnu.c.compiler.option.include.paths.238775737" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${KERNEL_SRC}/include&quot;"/>
+									<listOptionValue builtIn="false" value="../."/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.2030990451" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
@@ -103,6 +107,9 @@
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.cross.archiver.232576988" name="Cross GCC Archiver" superClass="cdt.managedbuild.tool.gnu.cross.archiver"/>
 							<tool id="cdt.managedbuild.tool.gnu.cross.assembler.1719918822" name="Cross GCC Assembler" superClass="cdt.managedbuild.tool.gnu.cross.assembler">
+								<option id="gnu.both.asm.option.include.paths.675225356" superClass="gnu.both.asm.option.include.paths" valueType="includePath">
+									<listOptionValue builtIn="false" value="../."/>
+								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.614919088" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
 							</tool>
 						</toolChain>

@@ -35,6 +35,12 @@ int daisy_open(struct net_device *dev)
 	 * x is 0 or 1. The first byte is '\0' to avoid being a multicast
 	 * address (the first byte of multicast addrs is odd).
 	 */
+	struct daisy_priv *priv = netdev_priv(dev);
+	if (!priv)
+		return -EFAULT;
+	priv->ic2_c = daisy_i2c_client;
+
+	/** TODO set correct adapter address */
 	memcpy(dev->dev_addr, "\0DF9RY", ETH_ALEN);
 	if (dev == daisy_dev)
 		dev->dev_addr[ETH_ALEN-1]++;

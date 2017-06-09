@@ -24,6 +24,13 @@
 #include "daisy.h"
 
 /*
+ * I2C adapter dependency.
+ */
+static struct i2c_board_info __initdata board_info[] = {
+	{ IC2_BOARD_INFO("RFM22B", 0x48), }
+};
+
+/*
  * Forwards.
  */
 int daisy_config(struct net_device *dev, struct ifmap *map);
@@ -125,7 +132,7 @@ static void daisy_init(struct net_device *dev)
 	priv = netdev_priv(dev);
 	memset(priv, 0, sizeof(struct daisy_priv));
 	spin_lock_init(&priv->lock);
-	//daisy_rx_ints(dev, 1);		/* enable receive interrupts */
+	priv->ic2_c = NULL;
 	daisy_setup_pool(dev);
 }
 
@@ -133,7 +140,9 @@ static void daisy_init(struct net_device *dev)
  * Finally, the module stuff
  */
 
-struct net_device *daisy_dev = NULL;
+struct net_device  *daisy_dev         = NULL;
+struct i2c_adapter *daisy_i2c_adapter = NULL;
+struct i2c_client  *daisy_i2c_client  = NULL;
 
 static void daisy_cleanup(void)
 {
@@ -142,6 +151,10 @@ static void daisy_cleanup(void)
 		daisy_teardown_pool(daisy_dev);
 		free_netdev(daisy_dev);
 		daisy_dev = NULL;
+	}
+	if (daisy_i2c_client) {
+		i2c_unregister_device(daisy_i2c_client);
+		daisy_i2c_client = NULL;
 	}
 }
 
@@ -157,11 +170,23 @@ int daisy_init_module(void)
 		goto out;
 
 	ret = -ENODEV;
-	if ((result = register_netdev(daisy_dev)))
-		printk("daisy: error %i registering device \"%s\"\n",
+	if (!(daisy_i2c_adapter = i2c_get_adapter(1))) {
+		printk("daisy: error registering i2c adapter \"%s\"\n",
+				daisy_i2c_adapter->name);
+		goto out;
+	}
+	if (!(daisy_i2c_client = i2c_new_device(daisy_i2c_adapter, board_info))) {
+		printk("daisy: error registering i2c client \"%s\"\n",
+				daisy_i2c_client->name);
+		goto out;
+	}
+	if ((result = register_netdev(daisy_dev))) {
+		printk("daisy: error %i registering network device \"%s\"\n",
 				result, daisy_dev->name);
-	else
-		ret = 0;
+		goto out;
+	}
+
+	ret = 0;
 
 out:
 	if (ret)
@@ -175,3 +200,4 @@ module_exit(daisy_cleanup);
 MODULE_AUTHOR("Tania Hagn - DF9RY");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("Driver for the Daisy interface");
+MODULE_VERSION("0.1");

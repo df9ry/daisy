@@ -19,6 +19,7 @@ CONFIGURATION  ?= Debug
 TOOLSET_PREFIX ?= arm-linux-gnueabihf-
 
 GCC            := $(TOOLSET_PREFIX)gcc
+GXX            := $(TOOLSET_PREFIX)g++
 
 ifdef ComSpec
     RM    := del /f /q

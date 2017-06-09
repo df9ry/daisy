@@ -18,16 +18,32 @@
 include ../../environment.mk
 
 # All Target
-all: $(CONFIGURATION)/hello
-
-# Tool invocations
-$(CONFIGURATION)/hello:
-	@echo 'Building target: $@'
+all: makedir \
+	$(CONFIGURATION)/rfm22b_setup_test \
+	$(CONFIGURATION)/rfm22b_send_test \
+	$(CONFIGURATION)/rfm22b_receive_test
+	
+makedir:
 ifeq ($(wildcard $(CONFIGURATION)),)
 	-@$(MKDIR) $(CONFIGURATION)
 endif
+
+# Tool invocations
+$(CONFIGURATION)/%: \
+	$(CONFIGURATION)/spi.o \
+	$(CONFIGURATION)/rfm22b.o
+	@echo 'Building target: $@'
 	@echo 'Invoking: Cross GCC Compiler and Linker'
-	$(GCC) -o $@ hello.c
+	$(GXX) -o $@ $(basename $(notdir $@)).cpp \
+		$(CONFIGURATION)/rfm22b.o \
+		$(CONFIGURATION)/spi.o
+	@echo 'Finished building target: $@'
+	-@echo ' '
+
+$(CONFIGURATION)/%.o:
+	@echo 'Building target: $@'
+	@echo 'Invoking: Cross GCC Compiler and Linker'
+	$(GXX) -o $@ -c $(basename $(notdir $@)).cpp
 	@echo 'Finished building target: $@'
 	-@echo ' '
 
@@ -38,4 +54,4 @@ ifneq ($(wildcard $(CONFIGURATION)),)
 endif
 	-@echo ' '
 
-.PHONY: all clean
+.PHONY: all clean makedir
