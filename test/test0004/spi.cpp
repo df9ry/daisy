@@ -26,7 +26,7 @@ namespace SPI_NS {
 //	Opens the SPI device and sets up some default values
 //	Default bits per word is 8
 //	Default clock speed is 10kHz
-SPI::SPI(const char *device) {
+SPI::SPI(const char *device): bits{0}, speed{0}, mode{0}, delay{0} {
 	this->device = device;
 	this->fd = open(this->device, O_RDWR);
 	if (fd < 0) {

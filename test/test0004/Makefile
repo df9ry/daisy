@@ -34,7 +34,7 @@ $(CONFIGURATION)/%: \
 	$(CONFIGURATION)/rfm22b.o
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross GCC Compiler and Linker'
-	$(GXX) -o $@ $(basename $(notdir $@)).cpp \
+	$(GXX) -std=c++11 -o $@ $(basename $(notdir $@)).cpp \
 		$(CONFIGURATION)/rfm22b.o \
 		$(CONFIGURATION)/spi.o
 	@echo 'Finished building target: $@'
@@ -43,7 +43,7 @@ $(CONFIGURATION)/%: \
 $(CONFIGURATION)/%.o:
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross GCC Compiler and Linker'
-	$(GXX) -o $@ -c $(basename $(notdir $@)).cpp
+	$(GXX) -std=c++11 -c -o $@ $(basename $(notdir $@)).cpp
 	@echo 'Finished building target: $@'
 	-@echo ' '
 

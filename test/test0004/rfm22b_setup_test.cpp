@@ -25,7 +25,7 @@
  
 #include "rfm22b.h"
 
-namespace RFM22B_NS {
+using namespace RFM22B_NS;
 
 int main() {
 	RFM22B *myRadio = new RFM22B("/dev/spidev0.0");
@@ -74,5 +74,3 @@ int main() {
 	
 	myRadio->close();
 }
-
-} // end namespace //

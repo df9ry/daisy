@@ -25,7 +25,7 @@
  
 #include "rfm22b.h"
 
-namespace RFM22B_NS {
+using namespace RFM22B_NS;
 
 int main() {
 	// Initialise the radio
@@ -52,5 +52,3 @@ int main() {
 	myRadio->send((uint8_t*)output, RFM22B::MAX_PACKET_LENGTH);	
 	myRadio->close();
 }
-
-} // end namespace //
