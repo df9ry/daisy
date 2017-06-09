@@ -65,7 +65,7 @@ static const struct net_device_ops daisy_netdev_ops = {
 /*
  * Set up a device's packet pool.
  */
-void daisy_setup_pool(struct net_device *dev)
+static void daisy_setup_pool(struct net_device *dev)
 {
 	struct daisy_priv *priv = netdev_priv(dev);
 	int i;
@@ -87,7 +87,7 @@ void daisy_setup_pool(struct net_device *dev)
 /*
  * Remove pool.
  */
-void daisy_teardown_pool(struct net_device *dev)
+static void daisy_teardown_pool(struct net_device *dev)
 {
 	struct daisy_priv *priv = netdev_priv(dev);
 	struct daisy_packet *pkt;
@@ -158,7 +158,7 @@ static void daisy_cleanup(void)
 	}
 }
 
-int daisy_init_module(void)
+static int daisy_init_module(void)
 {
 	int ret = -ENOMEM;
 	int result;

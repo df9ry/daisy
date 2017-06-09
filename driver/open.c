@@ -38,7 +38,7 @@ int daisy_open(struct net_device *dev)
 	struct daisy_priv *priv = netdev_priv(dev);
 	if (!priv)
 		return -EFAULT;
-	priv->ic2_c = daisy_i2c_client;
+	priv->i2c_c = daisy_i2c_client;
 
 	/** TODO set correct adapter address */
 	memcpy(dev->dev_addr, "\0DF9RY", ETH_ALEN);

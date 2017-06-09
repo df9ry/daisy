@@ -23,13 +23,13 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 static int hello_init(void)
 {
-	printk(KERN_ALERT "Hello Test0002\n");
+	printk(KERN_ALERT "Hello World of modules\n");
 	return 0;
 }
 
 static void hello_exit(void)
 {
-	printk(KERN_ALERT "Goodbye Test0002\n");
+	printk(KERN_ALERT "Goodbye for now\n");
 }
 
 module_init(hello_init);

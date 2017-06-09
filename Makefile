@@ -17,7 +17,7 @@
 
 .PHONY: all driver hello snull rfm22b_tests tests clean kernel kernel_clean
 
-all: rfm22b_tests
+all: driver
 
 driver:
 	$(MAKE) -C driver all

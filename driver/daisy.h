@@ -59,7 +59,7 @@ struct daisy_priv {
 	u8                     *tx_packetdata;
 	struct sk_buff         *skb;
 	spinlock_t              lock;
-	struct ic2_client      *ic2_c;
+	struct i2c_client      *i2c_c;
 };
 
 /*
