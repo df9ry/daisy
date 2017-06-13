@@ -63,7 +63,7 @@ static void daisy_hw_tx(char *buf, int len, struct net_device *dev)
 
 	if (0) { /* enable this conditional to look at the data */
 		int i;
-		PDEBUG("len is %i\n" KERN_DEBUG "data:",len);
+		printk(KERN_DEBUG "len is %i\n" KERN_DEBUG "data:",len);
 		for (i=14 ; i<len; i++)
 			printk(" %02x",buf[i]&0xff);
 		printk("\n");
@@ -127,8 +127,7 @@ void daisy_tx_timeout (struct net_device *dev)
 	struct daisy_priv *priv = netdev_priv(dev);
 	struct daisy_packet *pkt = NULL;
 
-	PDEBUG("Transmit timeout at %ld, latency %ld\n", jiffies,
-			jiffies - dev->trans_start);
+	printk(KERN_DEBUG "Transmit timeout at %ld\n", jiffies);
 
 	/* Lock the device */
 	spin_lock(&priv->lock);

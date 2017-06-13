@@ -26,6 +26,10 @@
 								<option id="gnu.c.compiler.option.debugging.level.1633410406" name="Debug Level" superClass="gnu.c.compiler.option.debugging.level" useByScannerDiscovery="false" value="gnu.c.debugging.level.max" valueType="enumerated"/>
 								<option id="gnu.c.compiler.option.include.paths.578148395" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${KERNEL_SRC}/include&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${KERNEL_SRC}/arch/arm/include&quot;"/>
+								</option>
+								<option id="gnu.c.compiler.option.preprocessor.def.symbols.604754205" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="mm_segment_t=int"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.420176478" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
@@ -50,6 +54,7 @@
 							<tool id="cdt.managedbuild.tool.gnu.cross.assembler.604828960" name="Cross GCC Assembler" superClass="cdt.managedbuild.tool.gnu.cross.assembler">
 								<option id="gnu.both.asm.option.include.paths.1460094550" name="Include paths (-I)" superClass="gnu.both.asm.option.include.paths" valueType="includePath">
 									<listOptionValue builtIn="false" value="../."/>
+									<listOptionValue builtIn="false" value="&quot;${KERNEL_SRC}/arch/arm/include&quot;"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.1834562939" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
 							</tool>
@@ -85,6 +90,10 @@
 								<option id="gnu.c.compiler.option.include.paths.238775737" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${KERNEL_SRC}/include&quot;"/>
 									<listOptionValue builtIn="false" value="../."/>
+									<listOptionValue builtIn="false" value="&quot;${KERNEL_SRC}/arch/arm/include&quot;"/>
+								</option>
+								<option id="gnu.c.compiler.option.preprocessor.def.symbols.448275275" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="mm_segment_t=int"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.2030990451" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
@@ -107,8 +116,9 @@
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.cross.archiver.232576988" name="Cross GCC Archiver" superClass="cdt.managedbuild.tool.gnu.cross.archiver"/>
 							<tool id="cdt.managedbuild.tool.gnu.cross.assembler.1719918822" name="Cross GCC Assembler" superClass="cdt.managedbuild.tool.gnu.cross.assembler">
-								<option id="gnu.both.asm.option.include.paths.675225356" superClass="gnu.both.asm.option.include.paths" valueType="includePath">
+								<option id="gnu.both.asm.option.include.paths.675225356" name="Include paths (-I)" superClass="gnu.both.asm.option.include.paths" valueType="includePath">
 									<listOptionValue builtIn="false" value="../."/>
+									<listOptionValue builtIn="false" value="&quot;${KERNEL_SRC}/arch/arm/include&quot;"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.614919088" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
 							</tool>

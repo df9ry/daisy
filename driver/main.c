@@ -23,12 +23,19 @@
 
 #include "daisy.h"
 
+MODULE_AUTHOR("Tania Hagn - DF9RY");
+MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("Driver for the Daisy interface");
+MODULE_VERSION("0.1.1");
+
 /*
- * I2C adapter dependency.
+ * Defines.
  */
-static struct i2c_board_info __initdata board_info[] = {
-	{ IC2_BOARD_INFO("RFM22B", 0x48), }
-};
+#define SPI_FILE "/dev/spidev0.0"
+
+/* Definition of global datastructures */
+struct net_device  *daisy_dev = NULL;
+struct file        *daisy_spi = NULL;
 
 /*
  * Forwards.
@@ -41,6 +48,8 @@ struct net_device_stats *daisy_stats(struct net_device *dev);
 int daisy_change_mtu(struct net_device *dev, int new_mtu);
 int daisy_tx(struct sk_buff *skb, struct net_device *dev);
 void daisy_tx_timeout (struct net_device *dev);
+struct file *file_open(const char *path, int flags, int rights);
+void file_close(struct file *file);
 
 /*
  * Parameters.
@@ -75,7 +84,7 @@ static void daisy_setup_pool(struct net_device *dev)
 	for (i = 0; i < pool_size; i++) {
 		pkt = kmalloc (sizeof (struct daisy_packet), GFP_KERNEL);
 		if (pkt == NULL) {
-			printk (KERN_NOTICE "Ran out of memory allocating packet pool\n");
+			printk (KERN_NOTICE "daisy: Ran out of memory allocating packet pool\n");
 			return;
 		}
 		pkt->dev = dev;
@@ -132,7 +141,6 @@ static void daisy_init(struct net_device *dev)
 	priv = netdev_priv(dev);
 	memset(priv, 0, sizeof(struct daisy_priv));
 	spin_lock_init(&priv->lock);
-	priv->ic2_c = NULL;
 	daisy_setup_pool(dev);
 }
 
@@ -140,21 +148,18 @@ static void daisy_init(struct net_device *dev)
  * Finally, the module stuff
  */
 
-struct net_device  *daisy_dev         = NULL;
-struct i2c_adapter *daisy_i2c_adapter = NULL;
-struct i2c_client  *daisy_i2c_client  = NULL;
-
 static void daisy_cleanup(void)
 {
+	if (daisy_spi) {
+		printk(KERN_DEBUG "daisy: Closing SPI file");
+		file_close(daisy_spi);
+	}
 	if (daisy_dev) {
+		printk(KERN_DEBUG "daisy: Closing net device");
 		unregister_netdev(daisy_dev);
 		daisy_teardown_pool(daisy_dev);
 		free_netdev(daisy_dev);
 		daisy_dev = NULL;
-	}
-	if (daisy_i2c_client) {
-		i2c_unregister_device(daisy_i2c_client);
-		daisy_i2c_client = NULL;
 	}
 }
 
@@ -163,41 +168,37 @@ static int daisy_init_module(void)
 	int ret = -ENOMEM;
 	int result;
 
+	printk(KERN_DEBUG "daisy: Initializing");
 	daisy_dev = alloc_netdev(
 			sizeof(struct daisy_priv), "dsy%d",
 			NET_NAME_UNKNOWN, daisy_init);
-	if (!daisy_dev)
+	if (!daisy_dev) {
+		printk(KERN_DEBUG "daisy: Error initializing net device\n");
 		goto out;
+	}
 
 	ret = -ENODEV;
-	if (!(daisy_i2c_adapter = i2c_get_adapter(1))) {
-		printk("daisy: error registering i2c adapter \"%s\"\n",
-				daisy_i2c_adapter->name);
-		goto out;
-	}
-	if (!(daisy_i2c_client = i2c_new_device(daisy_i2c_adapter, board_info))) {
-		printk("daisy: error registering i2c client \"%s\"\n",
-				daisy_i2c_client->name);
-		goto out;
-	}
 	if ((result = register_netdev(daisy_dev))) {
-		printk("daisy: error %i registering network device \"%s\"\n",
+		printk(KERN_DEBUG "daisy: Error %i registering network device \"%s\"\n",
 				result, daisy_dev->name);
 		goto out;
 	}
+
+	if (!(daisy_spi = file_open(SPI_FILE, O_RDWR, O_DIRECT))) {
+		printk(KERN_DEBUG "daisy: Unable to open SPI file: \"%s\"", SPI_FILE);
+		return -ENODEV;
+	}
+	printk(KERN_DEBUG "daisy: SPI file opened: \"%s\"", SPI_FILE);
 
 	ret = 0;
 
 out:
 	if (ret)
 		daisy_cleanup();
+	printk(KERN_DEBUG "daisy: Initialize finished with ERC=%i\n", ret);
 	return ret;
 }
 
 module_init(daisy_init_module);
 module_exit(daisy_cleanup);
 
-MODULE_AUTHOR("Tania Hagn - DF9RY");
-MODULE_LICENSE("Dual BSD/GPL");
-MODULE_DESCRIPTION("Driver for the Daisy interface");
-MODULE_VERSION("0.1");

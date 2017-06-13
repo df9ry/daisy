@@ -15,10 +15,14 @@
 #     You should have received a copy of the GNU General Public License
 #     along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
 
-.PHONY: all driver hello snull rfm22b_tests tests clean kernel kernel_clean
+.PHONY: all rfm22b driver hello snull rfm22b_tests tests clean kernel \
+	kernel_clean
 
 all: driver
 
+rfm22b:
+	$(MAKE) -C rfm22b all
+	
 driver:
 	$(MAKE) -C driver all
 

@@ -19,24 +19,7 @@
 #ifndef DAISY_H_
 #define DAISY_H_
 
-#undef PDEBUG             /* undef it, just in case */
-#ifdef SNULL_DEBUG
-#  ifdef __KERNEL__
-     /* This one if debugging is on, and kernel space */
-#    define PDEBUG(fmt, args...) printk( KERN_DEBUG "daisy: " fmt, ## args)
-#  else
-     /* This one for user space */
-#    define PDEBUG(fmt, args...) fprintf(stderr, fmt, ## args)
-#  endif
-#else
-#  define PDEBUG(fmt, args...) /* not debugging: nothing */
-#endif
-
-#undef PDEBUGG
-#define PDEBUGG(fmt, args...) /* nothing: it's a placeholder */
-
 #include <linux/netdevice.h>
-#include <linux/i2c.h>
 
 /*
  * A structure representing an in-flight packet.
@@ -59,7 +42,6 @@ struct daisy_priv {
 	u8                     *tx_packetdata;
 	struct sk_buff         *skb;
 	spinlock_t              lock;
-	struct i2c_client      *i2c_c;
 };
 
 /*
@@ -73,13 +55,9 @@ struct daisy_priv {
 #define DEFAULT_POOL_SIZE 8
 
 /*
- * Pointer to our I2C client struct.
- */
-extern struct i2c_client *daisy_i2c_client;
-
-/*
  * Pointer to our net_device struct.
  */
 extern struct net_device *daisy_dev;
+extern struct file       *daisy_spi;
 
 #endif /* DAISY_H_ */

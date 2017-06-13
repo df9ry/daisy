@@ -19,8 +19,12 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/errno.h>
+#include <linux/sockios.h>
 
 #include "daisy.h"
+
+/* IOCTL COMMANDS */
+#define IOCTL_TRANSFER_B (SIOCDEVPRIVATE + 0)
 
 /*
  * Configuration changes (passed on by ifconfig)
@@ -37,7 +41,15 @@ int daisy_config(struct net_device *dev, struct ifmap *map)
  */
 int daisy_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	PDEBUG("ioctl\n");
+	switch (cmd) {
+	case IOCTL_TRANSFER_B :
+		printk(KERN_DEBUG "IOCTL transfer byte\n");
+		rq->ifr_ifru.ifru_ivalue = -rq->ifr_ifru.ifru_ivalue;
+		break;
+	default:
+		printk(KERN_DEBUG "Undefined ioctl command 0x%x\n", cmd);
+		return -EOPNOTSUPP;
+	} // end switch //
 	return 0;
 }
 

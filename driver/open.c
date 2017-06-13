@@ -38,9 +38,7 @@ int daisy_open(struct net_device *dev)
 	struct daisy_priv *priv = netdev_priv(dev);
 	if (!priv)
 		return -EFAULT;
-	priv->i2c_c = daisy_i2c_client;
 
-	/** TODO set correct adapter address */
 	memcpy(dev->dev_addr, "\0DF9RY", ETH_ALEN);
 	if (dev == daisy_dev)
 		dev->dev_addr[ETH_ALEN-1]++;
@@ -50,9 +48,7 @@ int daisy_open(struct net_device *dev)
 
 int daisy_release(struct net_device *dev)
 {
-    /* release ports, irq and such -- like fops->close */
-
-	netif_stop_queue(dev); /* can't transmit any more */
+	netif_stop_queue(dev);
 	return 0;
 }
 

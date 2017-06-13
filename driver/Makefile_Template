@@ -15,5 +15,10 @@
 #     You should have received a copy of the GNU General Public License
 #     along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
 
-obj-m      += daisy.o
-daisy-objs := utils.o open.o tx.o
+obj-m      := daisy.o
+daisy-objs += utils.o
+daisy-objs += open.o
+daisy-objs += tx.o
+daisy-objs += fileio.o
+daisy-objs += main.o
+
