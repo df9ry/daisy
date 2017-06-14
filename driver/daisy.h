@@ -32,6 +32,15 @@ struct daisy_packet {
 };
 
 /*
+ * Top level data structure in this driver.
+ */
+struct root_descriptor {
+	struct file       *spi_file;
+	const char        *spi_dev_name;
+	struct net_device *daisy_dev;
+};
+
+/*
  * Private data for our daisy device.
  */
 struct daisy_priv {
@@ -41,6 +50,7 @@ struct daisy_priv {
 	int                     tx_packetlen;
 	u8                     *tx_packetdata;
 	struct sk_buff         *skb;
+	struct root_descriptor *root;
 	spinlock_t              lock;
 };
 
@@ -53,11 +63,5 @@ struct daisy_priv {
  * Default pool size.
  */
 #define DEFAULT_POOL_SIZE 8
-
-/*
- * Pointer to our net_device struct.
- */
-extern struct net_device *daisy_dev;
-extern struct file       *daisy_spi;
 
 #endif /* DAISY_H_ */

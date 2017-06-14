@@ -17,7 +17,6 @@
 
 obj-m      := daisy.o
 daisy-objs += utils.o
-daisy-objs += open.o
 daisy-objs += tx.o
 daisy-objs += fileio.o
 daisy-objs += main.o

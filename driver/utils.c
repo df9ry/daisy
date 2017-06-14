@@ -29,11 +29,33 @@
 /*
  * Configuration changes (passed on by ifconfig)
  */
-int daisy_config(struct net_device *dev, struct ifmap *map)
+
+struct mac_addr { /* Looks like that this kernel send it this way */
+	short family;
+	u8    a[ETH_ALEN];
+};
+
+int daisy_set_mac_address(struct net_device *dev, void *addr)
 {
-	if (dev->flags & IFF_UP) /* can't act on a running interface */
+	struct mac_addr *_addr = addr;
+	const char hex[17] = "0123456789abcdef";
+	char       buf[3*ETH_ALEN];
+	int        i, j, a;
+
+	if (dev->flags & IFF_UP)
 		return -EBUSY;
-	return -EOPNOTSUPP;
+
+	for (i = 0; i < ETH_ALEN; ++i, j+=3) {
+		a = _addr->a[i];
+		buf[j  ] = hex[a / 16];
+		buf[j+1] = hex[a % 16];
+		buf[j+2] = ':';
+	}
+	buf[3*ETH_ALEN-1] = '\0';
+	printk(KERN_DEBUG "daisy: Set HW addr on \"%s\" to %s\n",
+			dev->name, buf);
+	memcpy(dev->dev_addr, _addr->a, ETH_ALEN);
+	return 0;
 }
 
 /*
