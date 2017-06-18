@@ -16,26 +16,11 @@
  *    along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _SPI_EXCEPTION_H
-#define _SPI_EXCEPTION_H
+#ifndef _DEFAULTS_H
+#define _DEFAULTS_H
 
-#include <exception>
-#include <string>
+#define DEFAULT_DEVICE    "/dev/spidev0.0"
 
-namespace SPI_NS {
-
-	class SPI_exception: public std::exception {
-	private:
-		std::string msg;
-	public:
-		SPI_exception(const std::string& _msg) {
-			msg = _msg;
-		}
-		virtual const char* what() const throw() {
-			return msg.c_str();
-		}
-	};
-
-} // end namespace //
+#define DEFAULT_TUNE_TIME 10000 // In ms
 
 #endif

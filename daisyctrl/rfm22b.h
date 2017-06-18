@@ -19,6 +19,8 @@
 #ifndef _RFM22B_H
 #define _RFM22B_H
 
+#include <vector>
+
 #include "spi.h"
 
 namespace RFM22B_NS {
@@ -41,7 +43,17 @@ namespace RFM22B_NS {
 		RFM22B()                   : SPI_NS::SPI()       {}
 		RFM22B(const char *device) : SPI_NS::SPI(device) {}
 
-		void open(const char *device);
+		// Open the device.
+		void open(const char *device) { SPI::open(device); }
+
+		// Set the header address.
+		void setAddress(const std::vector<uint8_t>& addr);
+
+		// Get the header address.
+		std::vector<uint8_t> getAddress();
+
+		// Tune for some seconds:
+		void tune(unsigned int seconds);
 
 		// Set or get the carrier frequency (in Hz);
 		void setCarrierFrequency(unsigned int frequency);

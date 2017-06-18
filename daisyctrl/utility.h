@@ -16,26 +16,29 @@
  *    along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _SPI_EXCEPTION_H
-#define _SPI_EXCEPTION_H
 
-#include <exception>
+#ifndef UTILITY_H_
+#define UTILITY_H_
+
 #include <string>
+#include <vector>
 
-namespace SPI_NS {
+#include <stdint.h>
 
-	class SPI_exception: public std::exception {
-	private:
-		std::string msg;
-	public:
-		SPI_exception(const std::string& _msg) {
-			msg = _msg;
-		}
-		virtual const char* what() const throw() {
-			return msg.c_str();
-		}
-	};
+namespace DaisyUtils {
+
+	std::string          decode_string(const std::string&          s);
+	unsigned int         decode_uint  (const std::string&          s);
+	std::vector<uint8_t> decode_call  (const std::string&          s);
+	bool                 decode_bool  (const std::string&          s);
+
+	void                 noarg        (const std::string&          s);
+
+	std::string          print        (const std::string&          v);
+	std::string          print        (unsigned int                v);
+	std::string          print_call   (const std::vector<uint8_t>& v);
+	std::string          print        (bool                        v);
 
 } // end namespace //
 
-#endif
+#endif /* UTILITY_H_ */

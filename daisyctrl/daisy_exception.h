@@ -16,26 +16,25 @@
  *    along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _SPI_EXCEPTION_H
-#define _SPI_EXCEPTION_H
+#ifndef _SPI_DAISY_EXCEPTION_H
+#define _SPI_DAISY_EXCEPTION_H
 
 #include <exception>
 #include <string>
 
-namespace SPI_NS {
-
-	class SPI_exception: public std::exception {
-	private:
-		std::string msg;
-	public:
-		SPI_exception(const std::string& _msg) {
-			msg = _msg;
-		}
-		virtual const char* what() const throw() {
-			return msg.c_str();
-		}
-	};
-
-} // end namespace //
+class daisy_exception: public std::exception {
+private:
+	std::string msg;
+public:
+	daisy_exception(const std::string& _msg) {
+		msg = _msg;
+	}
+	daisy_exception(const std::string& _msg, const std::string& _arg) {
+		msg = _msg + ": " + _arg;
+	}
+	virtual const char* what() const throw() {
+		return msg.c_str();
+	}
+};
 
 #endif

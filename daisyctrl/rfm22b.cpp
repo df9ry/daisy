@@ -33,6 +33,20 @@ using namespace SPI_NS;
 
 namespace RFM22B_NS {
 
+// Set the header address.
+void RFM22B::setAddress(const vector<uint8_t>& addr) {
+
+}
+
+std::vector<uint8_t> RFM22B::getAddress() {
+	return std::vector<uint8_t> { };
+}
+
+// Tune for some seconds:
+void RFM22B::tune(unsigned int seconds) {
+
+}
+
 // Set the frequency of the carrier wave
 //	This function calculates the values of the registers 0x75-0x77 to achieve the 
 //	desired carrier wave frequency (without any hopping set)

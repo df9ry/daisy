@@ -28,19 +28,21 @@ endif
 
 # Tool invocations
 
-$(CONFIGURATION)/%: \
+$(CONFIGURATION)/%: %.cpp *.h \
 	$(CONFIGURATION)/rfm22b.o \
-	$(CONFIGURATION)/spi.o
+	$(CONFIGURATION)/spi.o \
+	$(CONFIGURATION)/utility.o
 	
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross GCC Compiler and Linker'
 	$(GXX) -std=c++11 -o $@ $(basename $(notdir $@)).cpp \
 		$(CONFIGURATION)/rfm22b.o \
-		$(CONFIGURATION)/spi.o
+		$(CONFIGURATION)/spi.o \
+		$(CONFIGURATION)/utility.o
 	@echo 'Finished building target: $@'
 	-@echo ' '
 
-$(CONFIGURATION)/%.o:
+$(CONFIGURATION)/%.o: %.cpp *.h
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross GCC Compiler and Linker'
 	$(GXX) -std=c++11 -c -o $@ $(basename $(notdir $@)).cpp
