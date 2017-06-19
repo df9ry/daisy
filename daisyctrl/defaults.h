@@ -19,8 +19,6 @@
 #ifndef _DEFAULTS_H
 #define _DEFAULTS_H
 
-#define DEFAULT_DEVICE    "/dev/spidev0.0"
-
 #define DEFAULT_TUNE_TIME 10000 // In ms
 
 #endif

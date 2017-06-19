@@ -22,7 +22,6 @@
 #include <functional>
 
 #include "rfm22b.h"
-#include "spi_exception.h"
 #include "daisy_exception.h"
 #include "defaults.h"
 #include "utility.h"
@@ -81,6 +80,16 @@ static const command_map_type command_map = {
 	  "", "Send unmodulated carrier for 10 seconds",
 			[](RFM22B& chip, const string& arg)
 			{ noarg(arg); chip.tune(DEFAULT_TUNE_TIME); }}},
+	{ "rssi?", command {
+	  "", "Get RSSI value",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg);
+			  cout << "rssi=" << print(chip.getRSSI()) << endl; }}},
+	{ "ip?", command {
+	  "", "Get input power",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg);
+			  cout << "ip=" << print(chip.getInputPower()) << endl; }}},
 };
 
 static void help(ostream &os, bool f_quiet = false) {
@@ -120,6 +129,7 @@ static void help(ostream &os, bool f_quiet = false) {
 }
 
 int main(int argc, char* argv[]) {
+
 	try {
 		if (argc == 1) {
 			help(cout);
@@ -138,17 +148,6 @@ int main(int argc, char* argv[]) {
 				cmd = arg.substr(0, pos+1);
 				arg = DaisyUtils::decode_string(arg.substr(pos+1));
 			}
-
-			// Open device, either specified of default:
-			if (iarg == 1) {
-				if (cmd == "device=") {
-					chip.open(arg.c_str());
-					continue;
-				} else {
-					chip.open(DEFAULT_DEVICE);
-				}
-			}
-
 			// Process command:
 			command_map_iter iter = command_map.find(cmd);
 			if (iter == command_map.end())
@@ -162,11 +161,8 @@ int main(int argc, char* argv[]) {
 		cerr << "Error: " << ex.what() << endl;
 		help(cerr, !f_verbose);
 	}
-	catch (SPI_NS::SPI_exception &ex) {
-		cerr << ex.what() << endl;
-	}
 	catch (std::exception &ex) {
-		cerr << ex.what() << endl;
+		cerr << "Error: " << ex.what() << endl;
 	}
 	catch (...) {
 		cerr << "Unspecified exception." << endl;

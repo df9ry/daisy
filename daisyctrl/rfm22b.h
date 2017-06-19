@@ -1,4 +1,4 @@
-/* Copyright 2017 Tania Hagn
+/* Copyright 2017 Tania Hagn. This file is based on the work of Owen McAree.
  *
  * This file is part of Daisy.
  *
@@ -21,8 +21,6 @@
 
 #include <vector>
 
-#include "spi.h"
-
 namespace RFM22B_NS {
 
 	enum class RFM22B_CRC_Mode;
@@ -37,14 +35,16 @@ namespace RFM22B_NS {
 	enum class RFM22B_CRC_Polynomial;
 	enum class RFM22B_Register;
 
-	class RFM22B : public SPI_NS::SPI {
+	class RFM22B {
 	public:
 		// Constructor
-		RFM22B()                   : SPI_NS::SPI()       {}
-		RFM22B(const char *device) : SPI_NS::SPI(device) {}
+		RFM22B();
 
-		// Open the device.
-		void open(const char *device) { SPI::open(device); }
+		// Destructor
+		~RFM22B();
+
+		// Reset the device
+		void reset();
 
 		// Set the header address.
 		void setAddress(const std::vector<uint8_t>& addr);
@@ -118,10 +118,7 @@ namespace RFM22B_NS {
 		void enableRXMode();
 		void enableTXMode();
 
-		// Reset the device
-		void reset();
-
-		// Set or get the trasmit header
+		// Set or get the transmit header
 		void setTransmitHeader(uint32_t header);
 		uint32_t getTransmitHeader();
 
@@ -160,10 +157,13 @@ namespace RFM22B_NS {
 		void clearTXFIFO();
 
 		// Send data
-		void send(uint8_t *data, int length);
+		void send(uint8_t *data, size_t length);
 
 		// Receive data (blocking with timeout). Returns number of bytes received
-		int receive(uint8_t *data, int length, int timeout=30000);
+		int receive(uint8_t *data, size_t length, int timeout=30000);
+
+		// Transfer
+		void transfer(uint8_t *tx, uint8_t *rx, size_t size);
 
 		// Helper functions for getting and getting individual registers
 		uint8_t getRegister(RFM22B_Register reg);
@@ -177,7 +177,8 @@ namespace RFM22B_NS {
 	private:
 
 		void setFIFOThreshold(RFM22B_Register reg, uint8_t thresh);
-	
+
+		std::vector<uint8_t> addr {};
 	};
 
 } // end namespace //

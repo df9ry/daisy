@@ -35,9 +35,15 @@ namespace DaisyUtils {
 	void                 noarg        (const std::string&          s);
 
 	std::string          print        (const std::string&          v);
+	std::string          print        (unsigned char               v);
+	std::string          print        (unsigned short              v);
 	std::string          print        (unsigned int                v);
+	std::string          print        (signed char                 v);
+	std::string          print        (signed short                v);
+	std::string          print        (signed int                  v);
 	std::string          print_call   (const std::vector<uint8_t>& v);
 	std::string          print        (bool                        v);
+	std::string          print        (const uint8_t* pb, size_t cb );
 
 } // end namespace //
 

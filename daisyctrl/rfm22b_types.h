@@ -1,4 +1,4 @@
-/* Copyright 2017 Tania Hagn
+/* Copyright 2017 Tania Hagn. This file is based on the work of Owen McAree.
  *
  * This file is part of Daisy.
  *

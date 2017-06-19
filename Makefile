@@ -15,8 +15,9 @@
 #     You should have received a copy of the GNU General Public License
 #     along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
 
-.PHONY: all driver hello snull rfm22b_tests tests clean kernel \
-	daisyctrl kernel_clean
+.PHONY: all \
+	driver hello hellodrv snull tests \
+	clean kernel daisyctrl kernel_clean
 
 all: daisyctrl
 
@@ -29,11 +30,11 @@ driver:
 hello:
 	$(MAKE) -C test/test0001 all
 
+hellodrv:
+	$(MAKE) -C test/test0002 all
+
 snull:
 	$(MAKE) -C test/test0003 all
-
-rfm22b_tests:
-	$(MAKE) -C test/test0004 all
 
 tests:
 	$(MAKE) -C test all
