@@ -19,12 +19,12 @@
 #include <iostream>
 #include <cstdlib>
 #include <map>
-#include <functional>
 
 #include "rfm22b.h"
 #include "daisy_exception.h"
 #include "defaults.h"
 #include "utility.h"
+#include "rfm22b_registers.h"
 
 using namespace std;
 using namespace RFM22B_NS;
@@ -41,8 +41,8 @@ struct command {
 	command_handler_type  handler;
 };
 
-typedef map<const string, command> command_map_type;
-typedef command_map_type::const_iterator     command_map_iter;
+typedef map<const string, command>       command_map_type;
+typedef command_map_type::const_iterator command_map_iter;
 
 static const command_map_type command_map = {
 	{ "verbose=", command {
@@ -64,18 +64,18 @@ static const command_map_type command_map = {
 			{ noarg(arg);
 			  cout << "call=" << print_call(chip.getAddress()) << endl; }}},
 	{ "qrg=", command {
-	  "<n>", "Set frequency in Hz",
+	  "<number>", "Set frequency in Hz",
 			[](RFM22B& chip, const string& arg)
-			{ chip.setCarrierFrequency(decode_uint(arg)); }}},
+			{ chip.setCarrierFrequency(decode_uint32(arg)); }}},
 	{ "qrg?", command {
 	  "", "Get frequency in Hz",
 			[](RFM22B& chip, const string& arg)
 			{ noarg(arg);
 			  cout << "qrg=" << print(chip.getCarrierFrequency()) << endl; }}},
 	{ "tune=", command {
-	  "<d>", "Send unmodulated carrier for d milliseconds",
+	  "<number>", "Send unmodulated carrier for d milliseconds",
 			[](RFM22B& chip, const string& arg)
-			{ chip.tune(decode_uint(arg)); }}},
+			{ chip.tune(decode_uint32(arg)); }}},
 	{ "tune", command {
 	  "", "Send unmodulated carrier for 10 seconds",
 			[](RFM22B& chip, const string& arg)
@@ -90,6 +90,220 @@ static const command_map_type command_map = {
 			[](RFM22B& chip, const string& arg)
 			{ noarg(arg);
 			  cout << "ip=" << print(chip.getInputPower()) << endl; }}},
+	{ "debug=", command {
+	  "<on|off>", "Set debug chip IO",
+			[](RFM22B& chip, const string& arg)
+			{ chip.setDebug(decode_bool(arg)); }}},
+	{ "debug?", command {
+	  "", "Get debug chip IO",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg);
+			  cout << "debug=" << print(chip.getDebug()) << endl; }}},
+	{ "reset", command {
+	  "", "Reset the chip",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg); chip.reset(); }}},
+	{ "channel=", command {
+	  "<0..255>", "Set channel",
+			[](RFM22B& chip, const string& arg)
+			{ chip.setChannel(decode_uint8(arg)); }}},
+	{ "channel?", command {
+	  "", "Get debug chip IO",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg);
+			  cout << "channel=" << print(chip.getChannel()) << endl; }}},
+	{ "deviation=", command {
+	  "<number>", "Set frequency deviation",
+			[](RFM22B& chip, const string& arg)
+			{ chip.setFrequencyDeviation(decode_uint32(arg)); }}},
+	{ "deviation?", command {
+	  "", "Get frequency deviation",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg);
+			  cout << "deviation=" << print(chip.getFrequencyDeviation()) << endl; }}},
+	{ "datarate=", command {
+	  "<number>", "Set data rate",
+			[](RFM22B& chip, const string& arg)
+			{ chip.setDataRate(decode_uint32(arg)); }}},
+	{ "datarate?", command {
+	  "", "Get data rate",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg);
+			  cout << "datarate=" << print(chip.getDataRate()) << endl; }}},
+	{ "modtype=", command {
+	  "<mod. type>", "Set modulation type",
+			[](RFM22B& chip, const string& arg)
+			{ chip.setModulationType(decode_modtype(arg)); }}},
+	{ "modtype?", command {
+	  "", "Get modulation type",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg);
+			  cout << "modtype=" << print(chip.getModulationType()) << endl; }}},
+	{ "mds=", command {
+	  "<mod. data src>", "Set modulation data source",
+			[](RFM22B& chip, const string& arg)
+			{ chip.setModulationDataSource(decode_mds(arg)); }}},
+	{ "mds?", command {
+	  "", "Get modulation data source",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg);
+			  cout << "mds=" << print(chip.getModulationDataSource()) << endl; }}},
+	{ "dcc=", command {
+	  "<data clk conf>", "Set data rate",
+			[](RFM22B& chip, const string& arg)
+			{ chip.setDataClockConfiguration(decode_dcc(arg)); }}},
+	{ "dcc?", command {
+	  "", "Get data clock configuration",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg);
+			  cout << "dcc=" << print(chip.getDataClockConfiguration()) << endl; }}},
+	{ "txpower=", command {
+	  "<0..255>", "Set transmit power",
+			[](RFM22B& chip, const string& arg)
+			{ chip.setTransmissionPower(decode_uint8(arg)); }}},
+	{ "txpower?", command {
+	  "", "Get transmit power",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg);
+			  cout << "txpower=" << print(chip.getTransmissionPower()) << endl; }}},
+	{ "gpio0func=", command {
+	  "<GPIO func.>", "Set GPIO0 function",
+			[](RFM22B& chip, const string& arg)
+			{ chip.setGPIOFunction(
+					RFM22B_GPIO::GPIO0, decode_gpiofunc(arg)); }}},
+	{ "gpio0func?", command {
+	  "", "Get GPIO0 function",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg);
+			  cout << "gpio0func=" <<
+					  print(chip.getGPIOFunction(RFM22B_GPIO::GPIO0)) << endl; }}},
+	{ "gpio1func=", command {
+	  "<GPIO func.>", "Set GPIO1 function",
+			[](RFM22B& chip, const string& arg)
+			{ chip.setGPIOFunction(
+					RFM22B_GPIO::GPIO1, decode_gpiofunc(arg)); }}},
+	{ "gpio1func?", command {
+	  "", "Get GPIO1 function",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg);
+			  cout << "gpio1func=" <<
+					  print(chip.getGPIOFunction(RFM22B_GPIO::GPIO1)) << endl; }}},
+	{ "gpio2func=", command {
+	  "<GPIO func.>", "Set GPIO2 function",
+			[](RFM22B& chip, const string& arg)
+			{ chip.setGPIOFunction(
+					RFM22B_GPIO::GPIO2, decode_gpiofunc(arg)); }}},
+	{ "gpio2func?", command {
+	  "", "Get GPIO2 function",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg);
+			  cout << "gpio2func=" <<
+					  print(chip.getGPIOFunction(RFM22B_GPIO::GPIO2)) << endl; }}},
+	{ "inte=", command {
+	  "<Interrupt>", "Enable interrupt",
+			[](RFM22B& chip, const string& arg)
+			{ chip.setInterruptEnable(decode_interrupt(arg), true); }}},
+	{ "intd=", command {
+	  "<Interrupt>", "Disable interrupt",
+			[](RFM22B& chip, const string& arg)
+			{ chip.setInterruptEnable(decode_interrupt(arg), false); }}},
+	{ "ints=", command {
+	  "<Interrupt>", "Get interrupt status",
+			[](RFM22B& chip, const string& arg)
+			{ cout << arg << " " <<	print(chip.getInterruptStatus(
+							decode_interrupt(arg))); }}},
+	{ "opmodes=", command {
+	  "<OP modes>", "Set operating modes",
+			[](RFM22B& chip, const string& arg)
+			{ chip.setOperatingMode(decode_opmodes(arg)); }}},
+	{ "opmodes?", command {
+	  "", "Set operating modes",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg);
+			  cout << "opmodes=" << print(chip.getOperatingMode()) << endl; }}},
+	{ "rxe", command {
+	  "", "Enable RX",
+	  	  	[](RFM22B& chip, const string& arg)
+	  	  	{ noarg(arg); chip.enableRXMode(); }}},
+	{ "txe", command {
+	  "", "Enable TX",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg); chip.enableTXMode(); }}},
+	{ "txhdr=", command {
+	  "<uint32>", "Set transmit header",
+			[](RFM22B& chip, const string& arg)
+			{ chip.setTransmitHeader(decode_uint32(arg)); }}},
+	{ "txhdr?", command {
+	  "", "Get transmit header",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg);
+			  cout << "txhdr=" << print(chip.getTransmitHeader()) << endl; }}},
+	{ "crcmode=", command {
+	  "<CRC mode>", "Set CRC mode",
+			[](RFM22B& chip, const string& arg)
+			{ chip.setCRCMode(decode_crcmode(arg)); }}},
+	{ "crcmode?", command {
+	  "", "Get CRC mdode",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg);
+			  cout << "crcmode=" << print(chip.getCRCMode()) << endl; }}},
+	{ "crcpoly=", command {
+	  "<CRC poly>", "Set CRC polynomial",
+			[](RFM22B& chip, const string& arg)
+			{ chip.setCRCPolynomial(decode_crcpoly(arg)); }}},
+	{ "crcpoly?", command {
+	  "", "Get CRC polynomial",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg);
+			  cout << "crcpoly=" << print(chip.getCRCPolynomial()) << endl; }}},
+	{ "txamft=", command {
+	  "<0..255>", "Set TX almost full threshold",
+			[](RFM22B& chip, const string& arg)
+			{ chip.setTXFIFOAlmostFullThreshold(decode_uint8(arg)); }}},
+	{ "txamft?", command {
+	  "", "Get TX almost full threshold",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg);
+			  cout << "txamft=" << print(chip.getTXFIFOAlmostFullThreshold()) << endl; }}},
+	{ "txamet=", command {
+	  "<0..255>", "Set TX almost empty threshold",
+			[](RFM22B& chip, const string& arg)
+			{ chip.setTXFIFOAlmostEmptyThreshold(decode_uint8(arg)); }}},
+	{ "txamet?", command {
+	  "", "Get TX almost empty threshold",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg);
+			  cout << "txamet=" << print(chip.getTXFIFOAlmostEmptyThreshold()) << endl; }}},
+	{ "rxamft=", command {
+	  "<0..255>", "Set RX almost full threshold",
+			[](RFM22B& chip, const string& arg)
+			{ chip.setRXFIFOAlmostFullThreshold(decode_uint8(arg)); }}},
+	{ "rxamft?", command {
+	  "", "Get RX almost full threshold",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg);
+			  cout << "rxamft=" << print(chip.getRXFIFOAlmostFullThreshold()) << endl; }}},
+	{ "rxlen?", command {
+	  "", "Get RX package length",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg);
+			  cout << "rxlen=" << print(chip.getReceivedPacketLength()) << endl; }}},
+	{ "txlen=", command {
+	  "<0..255>", "Set TX package length",
+			[](RFM22B& chip, const string& arg)
+			{ chip.setTransmitPacketLength(decode_uint8(arg)); }}},
+	{ "rxclr", command {
+	  "", "Clear RX FIFO",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg); chip.clearRXFIFO(); }}},
+	{ "txclr", command {
+	  "", "Clear TX FIFO",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg); chip.clearTXFIFO(); }}},
+	{ "help=", command {
+	  "<command>", "Print the possible values of the command",
+		[](RFM22B& chip, const string& arg)
+			{ cout << print_help(arg) << endl; }}},
 };
 
 static void help(ostream &os, bool f_quiet = false) {

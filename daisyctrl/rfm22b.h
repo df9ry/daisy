@@ -157,6 +157,12 @@ namespace RFM22B_NS {
 		void clearRXFIFO();
 		void clearTXFIFO();
 
+		// Control the debug flag
+		void setDebug(bool f) { debug = f; }
+
+		// Get the debug flag
+		bool getDebug() { return debug; }
+
 		// Send data
 		void send(uint8_t *data, size_t length);
 
@@ -181,6 +187,7 @@ namespace RFM22B_NS {
 
 		std::mutex           transfer_lock;
 		std::vector<uint8_t> addr {};
+		bool                 debug = false;
 	};
 
 } // end namespace //

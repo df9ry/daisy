@@ -556,9 +556,11 @@ namespace RFM22B_NS {
 			throw daisy_exception(
 					"Package too long (max 64)", to_string(size));
 		transfer_lock.lock();
-		cerr << "**TX: " << DaisyUtils::print(tx, size);
+		if (debug)
+			cerr << "**TX: " << DaisyUtils::print(tx, size);
 		bcm2835_spi_transfernb((char*)tx, (char*)rx, size);
-		cerr << " - " << DaisyUtils::print(rx, size) << endl;
+		if (debug)
+			cerr << " - " << DaisyUtils::print(rx, size) << endl;
 		transfer_lock.unlock();
 	}
 
