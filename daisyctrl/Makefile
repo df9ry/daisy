@@ -18,8 +18,7 @@
 include ../environment.mk
 
 # All Target
-all: makedir \
-	$(CONFIGURATION)/daisyctrl
+all: makedir $(CONFIGURATION)/daisyctrl
 	
 makedir:
 ifeq ($(wildcard $(CONFIGURATION)),)
@@ -28,15 +27,17 @@ endif
 
 # Tool invocations
 
-$(CONFIGURATION)/%: %.cpp *.h \
+$(CONFIGURATION)/daisyctrl: \
 	$(CONFIGURATION)/rfm22b.o \
-	$(CONFIGURATION)/utility.o
+	$(CONFIGURATION)/utility.o \
+	$(CONFIGURATION)/bcm2835.o
 	
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross GCC Compiler and Linker'
 	$(GXX) -std=c++11 -o $@ $(basename $(notdir $@)).cpp \
 		$(CONFIGURATION)/rfm22b.o \
-		$(CONFIGURATION)/utility.o
+		$(CONFIGURATION)/utility.o \
+		$(CONFIGURATION)/bcm2835.o
 	@echo 'Finished building target: $@'
 	-@echo ' '
 
@@ -44,6 +45,13 @@ $(CONFIGURATION)/%.o: %.cpp *.h
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross GCC Compiler and Linker'
 	$(GXX) -std=c++11 -c -o $@ $(basename $(notdir $@)).cpp
+	@echo 'Finished building target: $@'
+	-@echo ' '
+
+$(CONFIGURATION)/%.o: %.c *.h
+	@echo 'Building target: $@'
+	@echo 'Invoking: Cross GCC Compiler and Linker'
+	$(GCC) -c -o $@ $(basename $(notdir $@)).c
 	@echo 'Finished building target: $@'
 	-@echo ' '
 

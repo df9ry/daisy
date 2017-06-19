@@ -18,6 +18,7 @@
 
 #include <cstdlib>
 #include <sstream>
+#include <iostream>
 
 #include <sys/time.h>
 
@@ -26,19 +27,34 @@
 #include "rfm22b_registers.h"
 #include "daisy_exception.h"
 #include "defaults.h"
+#include "utility.h"
+#include "bcm2835.h"
 
 using namespace std;
+
+static int init_state = 0;
 
 namespace RFM22B_NS {
 
 	// Constructor:
 	RFM22B::RFM22B() {
-
+		if (init_state != 0)
+			throw daisy_exception("Invalid init state", to_string(init_state));
+		if (!bcm2835_init())
+			throw daisy_exception("Error initializing BCM2835 chip");
+		init_state = 1;
+		if (!bcm2835_spi_begin())
+			throw daisy_exception("Error initializing SPI system");
+		init_state = 2;
 	}
 	
 	// Destructor:
 	RFM22B::~RFM22B() {
-
+		if (init_state > 1)
+			bcm2835_spi_end();
+		if (init_state > 0)
+			bcm2835_close();
+		init_state = 0;
 	}
 
 	// Set the header address.
@@ -539,7 +555,11 @@ namespace RFM22B_NS {
 		if (size > MAX_PACKET_LENGTH)
 			throw daisy_exception(
 					"Package too long (max 64)", to_string(size));
-		/// TODO: Implement this.
+		transfer_lock.lock();
+		cerr << "**TX: " << DaisyUtils::print(tx, size);
+		bcm2835_spi_transfernb((char*)tx, (char*)rx, size);
+		cerr << " - " << DaisyUtils::print(rx, size) << endl;
+		transfer_lock.unlock();
 	}
 
 	// Send data

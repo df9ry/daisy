@@ -20,6 +20,7 @@
 #define _RFM22B_H
 
 #include <vector>
+#include <mutex>
 
 namespace RFM22B_NS {
 
@@ -178,6 +179,7 @@ namespace RFM22B_NS {
 
 		void setFIFOThreshold(RFM22B_Register reg, uint8_t thresh);
 
+		std::mutex           transfer_lock;
 		std::vector<uint8_t> addr {};
 	};
 
