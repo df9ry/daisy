@@ -47,6 +47,15 @@ namespace RFM22B_NS {
 		// Reset the device
 		void reset();
 
+		// Get device type.
+		uint8_t getDeviceType();
+
+		// Get device version.
+		uint8_t getDeviceVersion();
+
+		// Get device status.
+		uint8_t getDeviceStatus();
+
 		// Set the header address.
 		void setAddress(const std::vector<uint8_t>& addr);
 
@@ -55,6 +64,9 @@ namespace RFM22B_NS {
 
 		// Tune for some seconds:
 		void tune(unsigned int seconds);
+
+		// Send packages:
+		void send(unsigned int numpkts);
 
 		// Set or get the carrier frequency (in Hz);
 		void setCarrierFrequency(unsigned int frequency);
@@ -188,6 +200,8 @@ namespace RFM22B_NS {
 		std::mutex           transfer_lock;
 		std::vector<uint8_t> addr {};
 		bool                 debug = false;
+		uint8_t              tx[MAX_PACKET_LENGTH+1];
+		uint8_t              rx[MAX_PACKET_LENGTH+1];
 	};
 
 } // end namespace //

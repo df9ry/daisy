@@ -92,7 +92,7 @@
 									<listOptionValue builtIn="false" value="../."/>
 									<listOptionValue builtIn="false" value="&quot;${KERNEL_SRC}/arch/arm/include&quot;"/>
 								</option>
-								<option id="gnu.c.compiler.option.preprocessor.def.symbols.448275275" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
+								<option id="gnu.c.compiler.option.preprocessor.def.symbols.448275275" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" useByScannerDiscovery="false" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="mm_segment_t=int"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.2030990451" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>

@@ -17,12 +17,12 @@
 
 .PHONY: all \
 	driver hello hellodrv snull tests \
-	clean kernel daisyctrl kernel_clean
+	clean kernel daisy kernel_clean
 
-all: daisyctrl
+all: daisy
 
-daisyctrl:
-	$(MAKE) -C daisyctrl all
+daisy:
+	$(MAKE) -C daisy all
 	
 driver:
 	$(MAKE) -C driver all

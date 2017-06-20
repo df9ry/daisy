@@ -354,15 +354,25 @@ namespace DaisyUtils {
 	}
 
 	string print(uint32_t v) {
-		return to_string(v);
+		string s{to_string(v)};
+		if (v < 1000) {
+			return s;
+		}
+		ostringstream oss;
+		for (int i = 0; i < s.length(); ++i) {
+			if ((i > 0) && (((s.length() - i) % 3) == 0))
+				oss << '_';
+			oss << s[i];
+		} // end for //
+		return oss.str();
 	}
 
 	string print(uint16_t v) {
-		return to_string(v);
+		return print((uint32_t)v);
 	}
 
 	string print(uint8_t v) {
-		return to_string(v);
+		return print((uint32_t)v);
 	}
 
 	string print(int32_t v) {
@@ -370,11 +380,11 @@ namespace DaisyUtils {
 	}
 
 	string print(int16_t v) {
-		return to_string(v);
+		return print((int32_t)v);
 	}
 
 	string print(int8_t v) {
-		return to_string(v);
+		return print((int32_t)v);
 	}
 
 	static const char hex[17] = "0123456789abcdef";
@@ -582,6 +592,20 @@ namespace DaisyUtils {
 		return (result.length() > 0)?result:"\"\"";
 	}
 
+	string print_status(uint8_t v) {
+		ostringstream oss;
+		oss << "CPS(" << (v & 0x03) << ")";
+		if (v & 0x10)
+			oss << ",HEADERR";
+		if (v & 0x20)
+			oss << ",RXFFEM";
+		if (v & 0x40)
+			oss << ",FFUNFL";
+		if (v & 0x80)
+			oss << ",FFOVFL";
+		return oss.str();
+	}
+
 	string print(RFM22B_CRC_Mode v) {
 		typedef map<RFM22B_CRC_Mode, string> map_t;
 		const map_t t2s {
@@ -672,47 +696,52 @@ namespace DaisyUtils {
 			"verbose|call|qrg|tune|rssi|ip|debug|reset|channel|deviation|"
 			"datarate|modtype|mds|dcc|txpower|gpio0func|gpio1func|gpio2func|"
 			"inte|intd|ints|opmodes|rxe|txe|txhdr|crcmode|crcpoly|txamft|"
-			"txamet|rxamft|rxlen|txlen|rxclr|txclr|help|shell";
+			"txamet|rxamft|rxlen|txlen|rxclr|txclr|help|shell|devicetype|"
+			"deviceversion|devicestatus|send";
 
 	string print_help (const std::string& cmd) {
 		typedef map<string, string> map_t;
 		const map_t c2h {
-			{ "verbose",   help_bool       },
-			{ "call",      help_call       },
-			{ "qrg",       help_qrg        },
-			{ "tune",      help_uint32     },
-			{ "rssi",      help_uint8      },
-			{ "ip",        help_uint8      },
-			{ "debug",     help_call       },
-			{ "reset",     help_noarg      },
-			{ "channel",   help_uint8      },
-			{ "deviation", help_uint32     },
-			{ "datarate",  help_uint32     },
-			{ "modtype",   help_modtype    },
-			{ "mds",       help_mds        },
-			{ "dcc",       help_dcc        },
-			{ "txpower",   help_uint8      },
-			{ "gpio0func", help_gpiofunc   },
-			{ "gpio1func", help_gpiofunc   },
-			{ "gpio2func", help_gpiofunc   },
-			{ "inte",      help_interrupt  },
-			{ "intd",      help_interrupt  },
-			{ "ints",      help_interrupt  },
-			{ "opmodes",   help_opmodes    },
-			{ "rxe",       help_noarg      },
-			{ "txe",       help_noarg      },
-			{ "txhdr",     help_uint32     },
-			{ "crcmode",   help_crcmode    },
-			{ "crcpoly",   help_crcpoly    },
-			{ "txamft",    help_uint8      },
-			{ "txamet",    help_uint8      },
-			{ "rxamft",    help_uint8      },
-			{ "rxlen",     help_noarg      },
-			{ "txlen",     help_uint8      },
-			{ "rxclr",     help_noarg      },
-			{ "txclr",     help_noarg      },
-			{ "help",      help_help       },
-			{ "shell",     help_noarg      },
+			{ "verbose",       help_bool       },
+			{ "call",          help_call       },
+			{ "qrg",           help_qrg        },
+			{ "tune",          help_uint32     },
+			{ "rssi",          help_uint8      },
+			{ "ip",            help_uint8      },
+			{ "debug",         help_call       },
+			{ "reset",         help_noarg      },
+			{ "channel",       help_uint8      },
+			{ "deviation",     help_uint32     },
+			{ "datarate",      help_uint32     },
+			{ "modtype",       help_modtype    },
+			{ "mds",           help_mds        },
+			{ "dcc",           help_dcc        },
+			{ "txpower",       help_uint8      },
+			{ "gpio0func",     help_gpiofunc   },
+			{ "gpio1func",     help_gpiofunc   },
+			{ "gpio2func",     help_gpiofunc   },
+			{ "inte",          help_interrupt  },
+			{ "intd",          help_interrupt  },
+			{ "ints",          help_interrupt  },
+			{ "opmodes",       help_opmodes    },
+			{ "rxe",           help_noarg      },
+			{ "txe",           help_noarg      },
+			{ "txhdr",         help_uint32     },
+			{ "crcmode",       help_crcmode    },
+			{ "crcpoly",       help_crcpoly    },
+			{ "txamft",        help_uint8      },
+			{ "txamet",        help_uint8      },
+			{ "rxamft",        help_uint8      },
+			{ "rxlen",         help_noarg      },
+			{ "txlen",         help_uint8      },
+			{ "rxclr",         help_noarg      },
+			{ "txclr",         help_noarg      },
+			{ "help",          help_help       },
+			{ "shell",         help_noarg      },
+			{ "devicetype",    help_noarg      },
+			{ "deviceversion", help_noarg      },
+			{ "devicestatus",  help_noarg      },
+			{ "send",          help_uint32     },
 		};
 		map_t::const_iterator i = c2h.find(tolower(cmd));
 		if (i == c2h.end())

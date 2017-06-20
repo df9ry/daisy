@@ -19,7 +19,12 @@
 #include <cstdlib>
 #include <sstream>
 #include <iostream>
+#include <iomanip>
+#include <cstring>
+#include <chrono>
+#include <random>
 
+#include <unistd.h>
 #include <sys/time.h>
 
 #include "rfm22b.h"
@@ -34,6 +39,20 @@ using namespace std;
 
 static int init_state = 0;
 
+class Timer
+{
+public:
+    Timer() : beg_(clock_::now()) {}
+    void reset() { beg_ = clock_::now(); }
+    double elapsed() const {
+        return std::chrono::duration_cast<second_>
+            (clock_::now() - beg_).count(); }
+private:
+    typedef std::chrono::high_resolution_clock clock_;
+    typedef std::chrono::duration<double, std::ratio<1> > second_;
+    std::chrono::time_point<clock_> beg_;
+};
+
 namespace RFM22B_NS {
 
 	// Constructor:
@@ -46,6 +65,7 @@ namespace RFM22B_NS {
 		if (!bcm2835_spi_begin())
 			throw daisy_exception("Error initializing SPI system");
 		init_state = 2;
+		bcm2835_spi_setClockDivider(32);
 	}
 	
 	// Destructor:
@@ -55,6 +75,18 @@ namespace RFM22B_NS {
 		if (init_state > 0)
 			bcm2835_close();
 		init_state = 0;
+	}
+
+	uint8_t RFM22B::getDeviceType() {
+		return getRegister(RFM22B_Register::DEVICE_TYPE);
+	}
+
+	uint8_t RFM22B::getDeviceVersion() {
+		return getRegister(RFM22B_Register::DEVICE_VERSION);
+	}
+
+	uint8_t RFM22B::getDeviceStatus() {
+		return getRegister(RFM22B_Register::DEVICE_STATUS);
 	}
 
 	// Set the header address.
@@ -68,9 +100,55 @@ namespace RFM22B_NS {
 	
 	// Tune for some seconds:
 	void RFM22B::tune(unsigned int seconds) {
-	
+		RFM22B_Modulation_Data_Source mds_save = getModulationDataSource();
+		setModulationDataSource(RFM22B_Modulation_Data_Source::PN9);
+		RFM22B_Operating_Mode mode_save = getOperatingMode();
+		RFM22B_Operating_Mode mode = (RFM22B_Operating_Mode)
+				((uint)RFM22B_Operating_Mode::READY_MODE |
+				 (uint)RFM22B_Operating_Mode::TX_MODE);
+		setOperatingMode(mode);
+		setRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_1,
+				getRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_1) | 0x09);
+		sleep(seconds);
+		setRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_1,
+				getRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_1) & 0xf6);
+		setOperatingMode(RFM22B_Operating_Mode::READY_MODE);
+		setOperatingMode(mode_save);
+		setModulationDataSource(mds_save);
 	}
 	
+	void RFM22B::send(unsigned int numpkts) {
+		RFM22B_Modulation_Data_Source mds_save = getModulationDataSource();
+		setModulationDataSource(RFM22B_Modulation_Data_Source::FIFO);
+		clearTXFIFO();
+		uint8_t x = 0;
+		uint8_t buf[MAX_PACKET_LENGTH];
+	    std::mt19937 rng;
+	    rng.seed(std::random_device()());
+	    // distribution in range [0, 255]
+	    std::uniform_int_distribution<std::mt19937::result_type> dist(0,255);
+		for (int i = 0; i < MAX_PACKET_LENGTH; ++i)
+			buf[i] = dist(rng);
+		cout << "Now sending " << numpkts << " packages ... ";
+		cout.flush();
+		Timer timer;
+		for (unsigned int n; n < numpkts; ++n) {
+			send(buf, sizeof(buf));
+		}
+		double elapsed = timer.elapsed();
+		setModulationDataSource(mds_save);
+		double ms_per_package = 1000.0 * ( elapsed / (double)numpkts );
+		double n_octets = (double)numpkts * (double)sizeof(buf);
+		double ms_per_octet =  1000 * ( elapsed / n_octets );
+		double rate = 8.0 / ms_per_octet;
+		cout << (unsigned long long)n_octets << " octets" << endl;
+		cout << setprecision(3);
+		cout << elapsed << "s total" << endl;
+		cout << ms_per_package << " ms/package" << endl;
+		cout << ms_per_octet << " ms/octet" << endl;
+		cout << rate << " kbps" << endl;
+	}
+
 	// Set the frequency of the carrier wave
 	//	This function calculates the values of the registers 0x75-0x77 to achieve the
 	//	desired carrier wave frequency (without any hopping set)
@@ -194,7 +272,6 @@ namespace RFM22B_NS {
 
 		// Return the data rate (in bps, hence extra 1E3)
 		return ((unsigned int) txdr * 1E6) / (1 << (16 + 5 * txdtrtscale));
-
 	}
 	
 	// Set or get the modulation type
@@ -567,38 +644,25 @@ namespace RFM22B_NS {
 	// Send data
 	void RFM22B::send(uint8_t *data, size_t length) {
 		// Clear TX FIFO
-		this->clearTXFIFO();
-
-		// Initialise rx and tx arrays
-		uint8_t tx[MAX_PACKET_LENGTH+1] = { 0 };
-		uint8_t rx[MAX_PACKET_LENGTH+1] = { 0 };
+		//this->clearTXFIFO();
 
 		// Set FIFO register address (with write flag)
 		tx[0] = (uint8_t)RFM22B_Register::FIFO_ACCESS | (1<<7);
-
 		// Truncate data if its too long
-		if (length > MAX_PACKET_LENGTH) {
+		if (length > MAX_PACKET_LENGTH)
 			length = MAX_PACKET_LENGTH;
-		}
-
 		// Copy data from input array to tx array
-		for (int i = 1; i <= length; i++) {
-			tx[i] = data[i-1];
-		}
-
+		memcpy(&tx[1], data, length);
 		// Set the packet length
 		this->setTransmitPacketLength(length);
-
 		// Make the transfer
-		this->transfer(tx,rx,length+1);
-
+		this->transfer(tx,rx,length);
 		// Enter TX mode
 		this->enableTXMode();
-	
 		// Loop until packet has been sent (device has left TX mode)
-		while (((this->getRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_1)>>3) & 1)) {}
-
-		return;
+		while (((this->getRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_1)>>3) & 1)) {
+			usleep(1);
+		}
 	};
 	
 	// Receive data (blocking with timeout). Returns number of bytes received

@@ -18,7 +18,7 @@
 include ../environment.mk
 
 # All Target
-all: makedir $(CONFIGURATION)/daisyctrl
+all: makedir $(CONFIGURATION)/daisy
 	
 makedir:
 ifeq ($(wildcard $(CONFIGURATION)),)
@@ -27,7 +27,7 @@ endif
 
 # Tool invocations
 
-$(CONFIGURATION)/daisyctrl: daisyctrl.cpp \
+$(CONFIGURATION)/daisy: daisy.cpp \
 	$(CONFIGURATION)/rfm22b.o \
 	$(CONFIGURATION)/utility.o \
 	$(CONFIGURATION)/bcm2835.o

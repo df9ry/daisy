@@ -89,6 +89,7 @@ namespace DaisyUtils {
 			RFM22B_NS::RFM22B_CRC_Polynomial                          v);
 
 	std::string          print_help      (const std::string&        cmd);
+	std::string          print_status    (uint8_t                     v);
 } // end namespace //
 
 #endif /* UTILITY_H_ */

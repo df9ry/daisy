@@ -76,11 +76,11 @@ static const command_map_type command_map = {
 			{ noarg(arg);
 			  cout << "qrg=" << print(chip.getCarrierFrequency()) << endl; }}},
 	{ "tune=", command {
-	  "<number>", "Send unmodulated carrier for d milliseconds",
+	  "<number>", "Send  carrier for d seconds",
 			[](RFM22B& chip, const string& arg)
 			{ chip.tune(decode_uint32(arg)); }}},
 	{ "tune", command {
-	  "", "Send unmodulated carrier for 10 seconds",
+	  "", "Send carrier for 10 seconds",
 			[](RFM22B& chip, const string& arg)
 			{ noarg(arg); chip.tune(DEFAULT_TUNE_TIME); }}},
 	{ "rssi?", command {
@@ -315,6 +315,29 @@ static const command_map_type command_map = {
 		"", "Start interactive shell",
 			[](RFM22B& chip, const string& arg)
 			{ noarg(arg); shell(chip); }}},
+	{ "devicetype?", command {
+		"", "Get device type",
+		[](RFM22B& chip, const string& arg)
+		{ noarg(arg);
+		  cout << "devicetype=" << print(chip.getDeviceType()) << endl; }}},
+	{ "deviceversion?", command {
+		"", "Get device version",
+		[](RFM22B& chip, const string& arg)
+		{ noarg(arg);
+		  cout << "deviceversion=" << print(chip.getDeviceVersion()) << endl; }}},
+	{ "devicestatus?", command {
+		"", "Get device status",
+		[](RFM22B& chip, const string& arg)
+		{ noarg(arg);
+		  cout << "devicestatus=" << print_status(chip.getDeviceStatus()) << endl; }}},
+	{ "send", command {
+		"", "Send 100 packages",
+		[](RFM22B& chip, const string& arg)
+		{ noarg(arg); chip.send(DEFAULT_NUM_PACKAGE); }}},
+	{ "send=", command {
+		"<number>", "Send <number> packages",
+		[](RFM22B& chip, const string& arg)
+		{ chip.send(decode_uint32(arg)); }}},
 };
 
 static void help(ostream &os, bool f_quiet) {
