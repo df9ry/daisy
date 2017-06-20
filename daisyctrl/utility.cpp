@@ -578,7 +578,8 @@ namespace DaisyUtils {
 				oss << i->second;
 			}
 		}
-		return oss.str();
+		string result = oss.str();
+		return (result.length() > 0)?result:"\"\"";
 	}
 
 	string print(RFM22B_CRC_Mode v) {
@@ -591,7 +592,7 @@ namespace DaisyUtils {
 		map_t::const_iterator i = t2s.find(v);
 		if (i == t2s.end())
 			throw daisy_exception("RFM22B_CRC_Mode value not found");
-		return (i->second.length() > 0)?"\"\"":i->second;
+		return i->second;
 	}
 
 	string print(RFM22B_CRC_Polynomial v) {
@@ -614,7 +615,7 @@ namespace DaisyUtils {
 	}
 
 	static const string help_bool =
-			"One of "
+			"One of.\n"
 			"ON|OFF";
 	static const string help_call =
 			"Callsign, max 6 characters, optional followed by"
@@ -629,16 +630,16 @@ namespace DaisyUtils {
 	static const string help_noarg =
 			"No arguments";
 	static const string help_modtype =
-			"One of "
+			"One of:\n"
 			"UNMODULATED_CARRIER|OOK|FSK|GFSK";
 	static const string help_mds =
-			"One of "
+			"One of:\n"
 			"DIRECT_GPIO|DIRECT_SDI|FIFO|PN9";
 	static const string help_dcc =
-			"One of "
+			"One of:\n"
 			"NONE|GPIO|SDO|NIRQ";
 	static const string help_gpiofunc =
-			"One of "
+			"One of:\n"
 			"POWER_ON_RESET|WAKE_UP_TIMER_1|LOW_BATTERY_DETECT_1|"
 			"DIRECT_DIGITAL_INPUT|EXTERNAL_INTERRUPT_FALLING|"
 			"EXTERNAL_INTERRUPT_RISING|EXTERNAL_INTERRUPT_CHANGE|"
@@ -649,29 +650,29 @@ namespace DaisyUtils {
 			"INVALID_PREAMBLE_DETECTED|SYNC_WORD_DETECTED|"
 			"CLEAR_CHANNEL_ASSESSMENT|VDD|GND";
 	static const string help_interrupt =
-			"One of "
+			"One of:\n"
 			"POWER_ON_RESET_INT|CHIP_READY|LOW_BATTERY_DETECT|WAKE_UP_TIMER|"
 			"RSSI|INVALID_PREAMBLE|VALID_PREAMBLE|SYNC_WORD|CRC_ERROR|"
 			"VALID_PACKET_RECEIVED|PACKET_SENT|EXTERNAL|"
 			"RX_FIFO_ALMOST_FULL_INT|TX_FIFO_ALMOST_EMPTY_INT|"
 			"TX_FIFO_ALMOST_FULL_INT|FIFO_UNDERFLOW_OVERFLOW";
 	static const string help_opmodes =
-			"list of (separate with comma) "
+			"list of (separate with comma):\n"
 			"AUTOMATIC_TRANSMISSION|RX_MULTI_PACKET|READY_MODE|TUNE_MODE|"
 			"RX_MODE|TX_MODE|CRYSTAL_OSCILLATOR_SELECT|ENABLE_WAKE_UP_TIMER|"
 			"ENABLE_LOW_BATTERY_DETECT|RESET";
 	static const string help_crcmode =
-			"One of "
+			"One of:\n"
 			"CRC_DISABLED|CRC_DATA_ONLY|CRC_NORMAL";
 	static const string help_crcpoly =
-			"One of "
+			"One of:\n"
 			"CCITT|CRC16|IEC16|BAICHEVA";
 	static const string help_help =
-			"One of "
+			"One of:\n"
 			"verbose|call|qrg|tune|rssi|ip|debug|reset|channel|deviation|"
 			"datarate|modtype|mds|dcc|txpower|gpio0func|gpio1func|gpio2func|"
 			"inte|intd|ints|opmodes|rxe|txe|txhdr|crcmode|crcpoly|txamft|"
-			"txamet|rxamft|rxlen|txlen|rxclr|txclr|help";
+			"txamet|rxamft|rxlen|txlen|rxclr|txclr|help|shell";
 
 	string print_help (const std::string& cmd) {
 		typedef map<string, string> map_t;
@@ -711,6 +712,7 @@ namespace DaisyUtils {
 			{ "rxclr",     help_noarg      },
 			{ "txclr",     help_noarg      },
 			{ "help",      help_help       },
+			{ "shell",     help_noarg      },
 		};
 		map_t::const_iterator i = c2h.find(tolower(cmd));
 		if (i == c2h.end())
@@ -744,6 +746,27 @@ namespace DaisyUtils {
 		vector<string> elems;
 		split(s, delim, back_inserter(elems));
 		return elems;
+	}
+
+	// trim from start
+	std::string ltrim(const std::string &_s) {
+		string s{_s};
+	    s.erase(s.begin(), std::find_if(s.begin(), s.end(),
+	            std::not1(std::ptr_fun<int, int>(std::isspace))));
+	    return s;
+	}
+
+	// trim from end
+	std::string rtrim(const std::string &_s) {
+		string s{_s};
+	    s.erase(std::find_if(s.rbegin(), s.rend(),
+	            std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+	    return s;
+	}
+
+	// trim from both ends
+	std::string trim(const std::string &s) {
+	    return ltrim(rtrim(s));
 	}
 
 } // end namespace //

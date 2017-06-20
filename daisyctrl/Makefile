@@ -27,7 +27,7 @@ endif
 
 # Tool invocations
 
-$(CONFIGURATION)/daisyctrl: \
+$(CONFIGURATION)/daisyctrl: daisyctrl.cpp \
 	$(CONFIGURATION)/rfm22b.o \
 	$(CONFIGURATION)/utility.o \
 	$(CONFIGURATION)/bcm2835.o

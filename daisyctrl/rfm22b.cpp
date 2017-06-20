@@ -352,13 +352,13 @@ namespace RFM22B_NS {
 		this->setRegister((RFM22B_Register)gpio, gpioX);
 	}
 	
-	uint8_t RFM22B::getGPIOFunction(RFM22B_GPIO gpio) {
+	RFM22B_GPIO_Function RFM22B::getGPIOFunction(RFM22B_GPIO gpio) {
 		// Get the GPIO register
 		uint8_t gpioX = this->getRegister((RFM22B_Register)gpio);
 	
 		// Return the gpioX bits
 		// This should probably return an enum, but this needs a lot of cases
-		return gpioX & ((1<<5)-1);
+		return (RFM22B_GPIO_Function)(gpioX & ((1<<5)-1));
 	}
 	
 	// Enable or disable interrupts

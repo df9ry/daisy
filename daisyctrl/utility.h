@@ -32,6 +32,9 @@ namespace DaisyUtils {
 	std::string toupper(const std::string& s);
 	std::string tolower(const std::string& s);
 	std::vector<std::string> split(const std::string& s, char delim);
+	std::string ltrim(const std::string& s);
+	std::string rtrim(const std::string& s);
+	std::string trim(const std::string& s);
 
 	std::string          decode_string   (const std::string&          s);
 	uint8_t              decode_uint8    (const std::string&          s);

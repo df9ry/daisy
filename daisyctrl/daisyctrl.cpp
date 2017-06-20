@@ -32,6 +32,9 @@ using namespace DaisyUtils;
 
 static bool f_verbose = true;
 
+static void shell(RFM22B& chip);
+static void help(ostream &os, bool f_quiet = false);
+
 typedef function<void(RFM22B&, const string&)>
 	command_handler_type;
 
@@ -300,13 +303,21 @@ static const command_map_type command_map = {
 	  "", "Clear TX FIFO",
 			[](RFM22B& chip, const string& arg)
 			{ noarg(arg); chip.clearTXFIFO(); }}},
+	{ "help", command {
+	  "", "Print help",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg); help(cout, !f_verbose); }}},
 	{ "help=", command {
 	  "<command>", "Print the possible values of the command",
-		[](RFM22B& chip, const string& arg)
+			[](RFM22B& chip, const string& arg)
 			{ cout << print_help(arg) << endl; }}},
+	{ "shell", command {
+		"", "Start interactive shell",
+			[](RFM22B& chip, const string& arg)
+			{ noarg(arg); shell(chip); }}},
 };
 
-static void help(ostream &os, bool f_quiet = false) {
+static void help(ostream &os, bool f_quiet) {
 	if (f_quiet)
 		return;
 
@@ -340,6 +351,51 @@ static void help(ostream &os, bool f_quiet = false) {
 			os << " ";
 		os << " -- " << iter->second.description << endl;
 	} // end for //
+}
+
+static void shell(RFM22B& chip) {
+	cout << "Daisy Shell started. End with \"quit\"" << endl;
+	while (true) {
+		cout << "daisy> ";
+		cout.flush();
+		string line;
+		getline(cin, line);
+		line = DaisyUtils::trim(line);
+		if (line.length() == 0)
+			continue;
+		if (line == "quit")
+			break;
+		string cmd, arg;
+		const char rgsep[] { '?', '=' };
+		size_t pos = line.find_first_of(rgsep, 0, sizeof(rgsep));
+		if (pos == string::npos) {
+			cmd = line;
+			arg = "";
+		} else {
+			cmd = line.substr(0, pos+1);
+			arg = DaisyUtils::decode_string(line.substr(pos+1));
+		}
+		// Process command:
+		command_map_iter iter = command_map.find(cmd);
+		if (iter == command_map.end()) {
+			cout << "Command not found: \"" << cmd << "\"" << endl;
+			continue;
+		}
+		try {
+			iter->second.handler(chip, arg);
+		}
+		catch (::daisy_exception &ex) {
+			cerr << "Error: " << ex.what() << endl;
+			help(cerr, !f_verbose);
+		}
+		catch (std::exception &ex) {
+			cerr << "Error: " << ex.what() << endl;
+		}
+		catch (...) {
+			cerr << "Error: Unspecified exception." << endl;
+		}
+	} // end while //
+	cout << "Daisy Shell exit" << endl;
 }
 
 int main(int argc, char* argv[]) {
@@ -379,7 +435,7 @@ int main(int argc, char* argv[]) {
 		cerr << "Error: " << ex.what() << endl;
 	}
 	catch (...) {
-		cerr << "Unspecified exception." << endl;
+		cerr << "Error: Unspecified exception." << endl;
 	}
 	return EXIT_FAILURE;
 }

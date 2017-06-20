@@ -98,7 +98,7 @@ namespace RFM22B_NS {
 		// Set or get the GPIO configuration
 		void setGPIOFunction(RFM22B_GPIO gpio, RFM22B_GPIO_Function funct);
 		// This should probably return enum, but this needs a lot of cases
-		uint8_t getGPIOFunction(RFM22B_GPIO gpio);
+		RFM22B_GPIO_Function getGPIOFunction(RFM22B_GPIO gpio);
 
 		// Enable or disable interrupts
 		// No ability to get interrupt enable status as this would need a lot of case statements
