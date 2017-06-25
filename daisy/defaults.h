@@ -20,6 +20,7 @@
 #define _DEFAULTS_H
 
 #define DEFAULT_TUNE_TIME     10 // In s
+#define DEFAULT_RX_TIMEOUT    30 // In s
 #define DEFAULT_NUM_PACKAGE  100
 
 #endif

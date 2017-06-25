@@ -152,7 +152,7 @@ static const command_map_type command_map = {
 			{ noarg(arg);
 			  cout << "mds=" << print(chip.getModulationDataSource()) << endl; }}},
 	{ "dcc=", command {
-	  "<data clk conf>", "Set data rate",
+	  "<data clk conf>", "Set data clock configuration",
 			[](RFM22B& chip, const string& arg)
 			{ chip.setDataClockConfiguration(decode_dcc(arg)); }}},
 	{ "dcc?", command {
@@ -333,18 +333,73 @@ static const command_map_type command_map = {
 	{ "send", command {
 		"", "Send 100 packages",
 		[](RFM22B& chip, const string& arg)
-		{ noarg(arg); chip.send(DEFAULT_NUM_PACKAGE); }}},
+		{ noarg(arg); chip.tx_packages(DEFAULT_NUM_PACKAGE); }}},
 	{ "send=", command {
 		"<number>", "Send <number> packages",
 		[](RFM22B& chip, const string& arg)
-		{ chip.send(decode_uint32(arg)); }}},
+		{ chip.tx_packages(decode_uint32(arg)); }}},
+	{ "modmodes=", command {
+		"<list of modes>", "Set modulation modes",
+		[](RFM22B& chip, const string& arg)
+		{ chip.setModulationMode(decode_modmodes(arg)); }}},
+	{ "modmodes?", command {
+		"", "Get modulation modes",
+		[](RFM22B& chip, const string& arg)
+		{ noarg(arg);
+		  cout << "modmodes=" << print(chip.getModulationMode()) << endl; }}},
+	{ "bandwidth=", command {
+		"<number>", "Set IF bandwidth in Hz",
+		[](RFM22B& chip, const string& arg)
+		{ chip.setBandwidth(decode_uint32(arg)); }}},
+	{ "bandwidth?", command {
+		"", "Get IF bandwidth in Hz",
+		[](RFM22B& chip, const string& arg)
+		{ noarg(arg);
+		  cout << "bandwidth=" << print(chip.getBandwidth()) << endl; }}},
+	{ "preamble=", command {
+		"<number>", "Set length of preamble in bits",
+		[](RFM22B& chip, const string& arg)
+		{ chip.setPreambleLength(decode_uint32(arg)); }}},
+	{ "preamble?", command {
+		"", "Get preamble length in bits",
+		[](RFM22B& chip, const string& arg)
+		{ noarg(arg);
+		  cout << "preamble=" << print(chip.getPreambleLength()) << endl; }}},
+	{ "receive", command {
+		"", "Receive for 30s",
+		[](RFM22B& chip, const string& arg)
+		{ noarg(arg);
+		  uint8_t buf[64];
+		  size_t size = chip.rx_packages(buf, sizeof(buf), DEFAULT_RX_TIMEOUT);
+		  cout << print(buf, size) << endl; }}},
+	{ "receive=", command {
+		"<number>", "Receive for <number>s",
+		[](RFM22B& chip, const string& arg)
+		{ uint8_t buf[64];
+		  size_t size = chip.rx_packages(buf, sizeof(buf), decode_uint32(arg));
+		  cout << print(buf, size) << endl; }}},
+	{ "narrow", command {
+		"", "Set narrow mode",
+		[](RFM22B& chip, const string& arg)
+		{ noarg(arg);
+		  chip.setNarrowMode(); }}},
+	{ "medium", command {
+		"", "Set medium mode",
+		[](RFM22B& chip, const string& arg)
+		{ noarg(arg);
+		  chip.setMediumMode(); }}},
+	{ "wide", command {
+		"", "Set wide mode",
+		[](RFM22B& chip, const string& arg)
+		{ noarg(arg);
+		  chip.setWideMode(); }}},
 };
 
 static void help(ostream &os, bool f_quiet) {
 	if (f_quiet)
 		return;
 
-	os << "Usage: daisyctrl [device=<device>]" << endl;
+	os << "Usage: daisy" << endl;
 
 	int maxd = 0, maxo = 0;
 	for (command_map_iter iter = command_map.begin();

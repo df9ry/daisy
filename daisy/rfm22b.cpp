@@ -55,6 +55,138 @@ private:
 
 namespace RFM22B_NS {
 
+	// Settings for GFSK 10kbps, 50kHz deviation on 434.150 MHz:
+	static struct register_value init_narrow[] = {
+		 { 0x1c|0x80, 0x05 }, // IF Filter Bandwidth
+		 { 0x1d|0x80, 0x40 }, // AFC Loop Gearshift Overide
+		 { 0x20|0x80, 0x90 }, // Clock Recovery Oversampling Rate
+		 { 0x21|0x80, 0x20 }, // Clock Recovery Offset 2
+		 { 0x22|0x80, 0x51 }, // Clock Recovery Offset 1
+		 { 0x23|0x80, 0xEC }, // Clock Recovery Offset 0
+		 { 0x24|0x80, 0x00 }, // Clock Recovery Timing Loop Gain 1
+		 { 0x25|0x80, 0x23 }, // Clock Recovery Timing Loop Gain 0
+		 { 0x2a|0x80, 0x24 }, // AFC Limiter
+		 { 0x30|0x80, 0xaf }, // Data Access Control
+		 { 0x32|0x80, 0x8c }, // Header Control 1
+		 { 0x33|0x80, 0x02 }, // Header Control 2
+		 { 0x34|0x80, 0x0a }, // Preamble Length
+		 { 0x35|0x80, 0x2a }, // Preamble Detection Control 1
+		 { 0x36|0x80, 0x2d }, // Synchronization Word 3
+		 { 0x37|0x80, 0xd4 }, // Synchronization Word 2
+		 { 0x38|0x80, 0x00 }, // Synchronization Word 1
+		 { 0x39|0x80, 0x00 }, // Synchronization Word 0
+		 { 0x3a|0x80, 0x00 }, // Transmit Header 3
+		 { 0x3b|0x80, 0x00 }, // Transmit Header 2
+		 { 0x3c|0x80, 0x00 }, // Transmit Header 1
+		 { 0x3d|0x80, 0x00 }, // Transmit Header 0
+		 { 0x3e|0x80, 0x00 }, // Packet Length
+		 { 0x3f|0x80, 0x00 }, // Check Header 3
+		 { 0x40|0x80, 0x00 }, // Check Header 2
+		 { 0x41|0x80, 0x00 }, // Check Header 1
+		 { 0x42|0x80, 0x00 }, // Check header 0
+		 { 0x43|0x80, 0xff }, // Header Enable 3
+		 { 0x44|0x80, 0xff }, // Header Enable 2
+		 { 0x45|0x80, 0xff }, // Header Enable 1
+		 { 0x46|0x80, 0xff }, // Header Enable 0
+		 { 0x6e|0x80, 0x51 }, // TX Data Rate 1
+		 { 0x6f|0x80, 0xec }, // TX Data Rate 0
+		 { 0x70|0x80, 0x2d }, // Modulation Mode Control 1
+		 { 0x71|0x80, 0x23 }, // Modulation Mode Control 2
+		 { 0x72|0x80, 0x50 }, // Frequency Deviation
+		 { 0x75|0x80, 0x53 }, // Frequency Band Select
+		 { 0x76|0x80, 0x67 }, // Nominal Carrier Frequency
+		 { 0x77|0x80, 0xc0 }, // Nominal Carrier Frequency
+		 { 0x00,      0x00 }  // Termination NULL Entry
+	};
+
+	// Settings for GFSK 100kbps, 50kHz deviation on 434.150 MHz:
+	static struct register_value init_medium[] = {
+		 { 0x1c|0x80, 0x99 }, // IF Filter Bandwidth
+		 { 0x1d|0x80, 0x40 }, // AFC Loop Gearshift Overide
+		 { 0x20|0x80, 0x3c }, // Clock Recovery Oversampling Rate
+		 { 0x21|0x80, 0x02 }, // Clock Recovery Offset 2
+		 { 0x22|0x80, 0x22 }, // Clock Recovery Offset 1
+		 { 0x23|0x80, 0x22 }, // Clock Recovery Offset 0
+		 { 0x24|0x80, 0x07 }, // Clock Recovery Timing Loop Gain 1
+		 { 0x25|0x80, 0xff }, // Clock Recovery Timing Loop Gain 0
+		 { 0x2a|0x80, 0x48 }, // AFC Limiter
+		 { 0x30|0x80, 0xaf }, // Data Access Control
+		 { 0x32|0x80, 0x8c }, // Header Control 1
+		 { 0x33|0x80, 0x02 }, // Header Control 2
+		 { 0x34|0x80, 0x0a }, // Preamble Length
+		 { 0x35|0x80, 0x2a }, // Preamble Detection Control 1
+		 { 0x36|0x80, 0x2d }, // Synchronization Word 3
+		 { 0x37|0x80, 0xd4 }, // Synchronization Word 2
+		 { 0x38|0x80, 0x00 }, // Synchronization Word 1
+		 { 0x39|0x80, 0x00 }, // Synchronization Word 0
+		 { 0x3a|0x80, 0x00 }, // Transmit Header 3
+		 { 0x3b|0x80, 0x00 }, // Transmit Header 2
+		 { 0x3c|0x80, 0x00 }, // Transmit Header 1
+		 { 0x3d|0x80, 0x00 }, // Transmit Header 0
+		 { 0x3e|0x80, 0x00 }, // Packet Length
+		 { 0x3f|0x80, 0x00 }, // Check Header 3
+		 { 0x40|0x80, 0x00 }, // Check Header 2
+		 { 0x41|0x80, 0x00 }, // Check Header 1
+		 { 0x42|0x80, 0x00 }, // Check header 0
+		 { 0x43|0x80, 0xff }, // Header Enable 3
+		 { 0x44|0x80, 0xff }, // Header Enable 2
+		 { 0x45|0x80, 0xff }, // Header Enable 1
+		 { 0x46|0x80, 0xff }, // Header Enable 0
+		 { 0x6e|0x80, 0x19 }, // TX Data Rate 1
+		 { 0x6f|0x80, 0x9a }, // TX Data Rate 0
+		 { 0x70|0x80, 0x0d }, // Modulation Mode Control 1
+		 { 0x71|0x80, 0x23 }, // Modulation Mode Control 2
+		 { 0x72|0x80, 0x50 }, // Frequency Deviation
+		 { 0x75|0x80, 0x53 }, // Frequency Band Select
+		 { 0x76|0x80, 0x67 }, // Nominal Carrier Frequency
+		 { 0x77|0x80, 0xc0 }, // Nominal Carrier Frequency
+		 { 0x00,      0x00 }  // Termination NULL Entry
+	};
+
+	// Settings for GFSK 250kbps, 50kHz deviation on 434.150 MHz:
+	static struct register_value init_wide[] = {
+		 { 0x1c|0x80, 0x89 }, // IF Filter Bandwidth
+		 { 0x1d|0x80, 0x40 }, // AFC Loop Gearshift Overide
+		 { 0x20|0x80, 0x30 }, // Clock Recovery Oversampling Rate
+		 { 0x21|0x80, 0x02 }, // Clock Recovery Offset 2
+		 { 0x22|0x80, 0xaa }, // Clock Recovery Offset 1
+		 { 0x23|0x80, 0xab }, // Clock Recovery Offset 0
+		 { 0x24|0x80, 0x07 }, // Clock Recovery Timing Loop Gain 1
+		 { 0x25|0x80, 0xff }, // Clock Recovery Timing Loop Gain 0
+		 { 0x2a|0x80, 0x48 }, // AFC Limiter
+		 { 0x30|0x80, 0xaf }, // Data Access Control
+		 { 0x32|0x80, 0x8c }, // Header Control 1
+		 { 0x33|0x80, 0x02 }, // Header Control 2
+		 { 0x34|0x80, 0x0a }, // Preamble Length
+		 { 0x35|0x80, 0x2a }, // Preamble Detection Control 1
+		 { 0x36|0x80, 0x2d }, // Synchronization Word 3
+		 { 0x37|0x80, 0xd4 }, // Synchronization Word 2
+		 { 0x38|0x80, 0x00 }, // Synchronization Word 1
+		 { 0x39|0x80, 0x00 }, // Synchronization Word 0
+		 { 0x3a|0x80, 0x00 }, // Transmit Header 3
+		 { 0x3b|0x80, 0x00 }, // Transmit Header 2
+		 { 0x3c|0x80, 0x00 }, // Transmit Header 1
+		 { 0x3d|0x80, 0x00 }, // Transmit Header 0
+		 { 0x3e|0x80, 0x00 }, // Packet Length
+		 { 0x3f|0x80, 0x00 }, // Check Header 3
+		 { 0x40|0x80, 0x00 }, // Check Header 2
+		 { 0x41|0x80, 0x00 }, // Check Header 1
+		 { 0x42|0x80, 0x00 }, // Check header 0
+		 { 0x43|0x80, 0xff }, // Header Enable 3
+		 { 0x44|0x80, 0xff }, // Header Enable 2
+		 { 0x45|0x80, 0xff }, // Header Enable 1
+		 { 0x46|0x80, 0xff }, // Header Enable 0
+		 { 0x6e|0x80, 0x40 }, // TX Data Rate 1
+		 { 0x6f|0x80, 0x00 }, // TX Data Rate 0
+		 { 0x70|0x80, 0x0d }, // Modulation Mode Control 1
+		 { 0x71|0x80, 0x23 }, // Modulation Mode Control 2
+		 { 0x72|0x80, 0x50 }, // Frequency Deviation
+		 { 0x75|0x80, 0x53 }, // Frequency Band Select
+		 { 0x76|0x80, 0x67 }, // Nominal Carrier Frequency
+		 { 0x77|0x80, 0xc0 }, // Nominal Carrier Frequency
+		 { 0x00,      0x00 }  // Termination NULL Entry
+	};
+
 	// Constructor:
 	RFM22B::RFM22B() {
 		if (init_state != 0)
@@ -65,7 +197,10 @@ namespace RFM22B_NS {
 		if (!bcm2835_spi_begin())
 			throw daisy_exception("Error initializing SPI system");
 		init_state = 2;
-		bcm2835_spi_setClockDivider(32);
+		bcm2835_spi_setClockDivider(64);
+		unsigned int device = getRegister(RFM22B_Register::DEVICE_TYPE);
+		if (device != 8)
+			throw daisy_exception("Invalid device", to_string(device));
 	}
 	
 	// Destructor:
@@ -98,26 +233,34 @@ namespace RFM22B_NS {
 		return addr;
 	}
 	
+	void RFM22B::setNarrowMode() {
+		reset();
+		init(init_narrow);
+		sleep(1);
+	}
+
+	void RFM22B::setMediumMode() {
+		reset();
+		init(init_medium);
+		sleep(1);
+	}
+
+	void RFM22B::setWideMode() {
+		reset();
+		init(init_wide);
+		sleep(1);
+	}
+
 	// Tune for some seconds:
 	void RFM22B::tune(unsigned int seconds) {
 		RFM22B_Modulation_Data_Source mds_save = getModulationDataSource();
 		setModulationDataSource(RFM22B_Modulation_Data_Source::PN9);
-		RFM22B_Operating_Mode mode_save = getOperatingMode();
-		RFM22B_Operating_Mode mode = (RFM22B_Operating_Mode)
-				((uint)RFM22B_Operating_Mode::READY_MODE |
-				 (uint)RFM22B_Operating_Mode::TX_MODE);
-		setOperatingMode(mode);
-		setRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_1,
-				getRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_1) | 0x09);
+		enableTXMode();
 		sleep(seconds);
-		setRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_1,
-				getRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_1) & 0xf6);
-		setOperatingMode(RFM22B_Operating_Mode::READY_MODE);
-		setOperatingMode(mode_save);
 		setModulationDataSource(mds_save);
 	}
 	
-	void RFM22B::send(unsigned int numpkts) {
+	void RFM22B::tx_packages(unsigned int numpkts) {
 		RFM22B_Modulation_Data_Source mds_save = getModulationDataSource();
 		setModulationDataSource(RFM22B_Modulation_Data_Source::FIFO);
 		clearTXFIFO();
@@ -147,6 +290,14 @@ namespace RFM22B_NS {
 		cout << ms_per_package << " ms/package" << endl;
 		cout << ms_per_octet << " ms/octet" << endl;
 		cout << rate << " kbps" << endl;
+	}
+
+	size_t RFM22B::rx_packages(uint8_t* pb, size_t cb, unsigned int timeout) {
+		cout << "No listening for a package ... ";
+		cout.flush();
+		size_t result = receive(pb, cb, 1000*timeout);
+		cout << result << " octets" << endl;
+		return result;
 	}
 
 	// Set the frequency of the carrier wave
@@ -232,48 +383,122 @@ namespace RFM22B_NS {
 	
 	// Set or get the frequency deviation (in Hz, but floored to the nearest 625Hz)
 	void RFM22B::setFrequencyDeviation(unsigned int deviation) {
-		if (deviation > 320000) {
-			deviation = 320000;
-		}
-		this->setRegister(RFM22B_Register::FREQUENCY_DEVIATION, deviation/625);
+		if (deviation >= 320000)
+			throw daisy_exception("Deviation too large (0..319_999)", to_string(deviation));
+		uint16_t v = deviation/625;
+		setRegister(RFM22B_Register::FREQUENCY_DEVIATION, v & 0x00ff);
+		uint8_t mmc2 = getRegister(RFM22B_Register::MODULATION_MODE_CONTROL_2);
+		mmc2 = (v & 0x0100) ? mmc2 | (1<<2) : mmc2 & ~(1<<2);
+		setRegister(RFM22B_Register::MODULATION_MODE_CONTROL_2, mmc2);
 	}
 	unsigned int RFM22B::getFrequencyDeviation() {
-		return this->getRegister(RFM22B_Register::FREQUENCY_DEVIATION)*625;
+		uint16_t v = getRegister(RFM22B_Register::FREQUENCY_DEVIATION);
+		if (getRegister(RFM22B_Register::MODULATION_MODE_CONTROL_2) & (1<<2))
+			v |= 0x0100;
+		return v * 625;
 	}
 	
 	// Set or get the data rate (bps)
 	void RFM22B::setDataRate(unsigned int rate) {
-		// Get the Modulation Mode Control 1 register (for scaling bit)
-		uint8_t mmc1 = this->getRegister(RFM22B_Register::MODULATION_MODE_CONTROL_1);
-
-		uint16_t txdr;
+		if (rate < 123)
+			throw daisy_exception("Data rate too low (123..256_000)", to_string(rate));
+		if (rate > 256000)
+			throw daisy_exception("Data rate too high (123..256_000)", to_string(rate));
 		// Set the scale bit (5th bit of 0x70) high if data rate is below 30kbps
 		// and calculate the value for txdr registers (0x6E and 0x6F)
-		if (rate < 30000) {
+		uint8_t mmc1 = getRegister(RFM22B_Register::MODULATION_MODE_CONTROL_1);
+		double _rate = rate;
+		if (_rate < 30000.0) {
 			mmc1 |= (1<<5);
-			txdr = rate * ((1 << (16 + 5)) / 1E6);
+			_rate = ((_rate * (1<<21))) / 1.0E6;
 		} else {
 			mmc1 &= ~(1<<5);
-			txdr = rate * ((1 << (16)) / 1E6);
+			_rate = ((_rate * (1<<16))) / 1.0E6;
 		}
-
-		// Set the data rate bytes
-		this->set16BitRegister(RFM22B_Register::TX_DATA_RATE_1, txdr);
-
-		// Set the scaling byte
-		this->setRegister(RFM22B_Register::MODULATION_MODE_CONTROL_1, mmc1);
+		uint32_t x = round(_rate);
+		setRegister(RFM22B_Register::MODULATION_MODE_CONTROL_1, mmc1);
+		set16BitRegister(RFM22B_Register::TX_DATA_RATE_1, round(x));
+		// Register 58 hint:
+		setRegister(RFM22B_Register::FAST_TX, (rate > 100000)?0xc0:0x80);
 	}
+
 	unsigned int RFM22B::getDataRate() {
-		// Get the data rate scaling value (5th bit of 0x70)
-		uint8_t txdtrtscale = (this->getRegister(RFM22B_Register::MODULATION_MODE_CONTROL_1) >> 5) & 1;
-	
-		// Get the data rate registers
-		uint16_t txdr = this->get16BitRegister(RFM22B_Register::TX_DATA_RATE_1);
-
-		// Return the data rate (in bps, hence extra 1E3)
-		return ((unsigned int) txdr * 1E6) / (1 << (16 + 5 * txdtrtscale));
+		double x = get16BitRegister(RFM22B_Register::TX_DATA_RATE_1);
+		return round((getRegister(RFM22B_Register::MODULATION_MODE_CONTROL_1) & (1<<5))?
+				     (1.0E6 * x) / (1<<21) : (1.0E6 * x) / (1<<16));
 	}
 	
+	struct BW {
+		unsigned int bw;
+		uint8_t      ndec_exp;
+		uint8_t      dwn3_bypass;
+		uint8_t      filset;
+	};
+
+	static BW bwtable[] = {
+			{   2600, 5, 0,  1 }, {   2800, 5, 0,  2 },
+			{   3100, 5, 0,  3 }, {   3200, 5, 0,  4 },
+			{   3700, 5, 0,  5 }, {   4200, 5, 0,  6 },
+			{   4500, 5, 0,  7 }, {   4900, 4, 0,  1 },
+			{   5400, 4, 0,  2 }, {   5900, 4, 0,  3 },
+			{   6100, 4, 0,  4 }, {   7200, 4, 0,  5 },
+			{   8200, 4, 0,  6 }, {   8800, 4, 0,  7 },
+			{   9500, 3, 0,  1 }, {  10600, 3, 0,  2 },
+			{  11500, 3, 0,  3 }, {  12100, 3, 0,  4 },
+			{  14200, 3, 0,  5 }, {  16200, 3, 0,  6 },
+			{  17500, 3, 0,  7 }, {  18900, 2, 0,  1 },
+			{  21000, 2, 0,  2 }, {  22700, 2, 0,  3 },
+			{  24000, 2, 0,  4 }, {  28200, 2, 0,  5 },
+			{  32200, 2, 0,  6 }, {  34700, 2, 0,  7 },
+			{  37700, 1, 0,  1 }, {  41700, 1, 0,  2 },
+			{  45200, 1, 0,  3 }, {  47900, 1, 0,  4 },
+			{  56200, 1, 0,  5 }, {  64100, 1, 0,  6 },
+			{  69200, 1, 0,  7 }, {  75200, 0, 0,  1 },
+			{  83200, 0, 0,  2 }, {  90000, 0, 0,  3 },
+			{  95300, 0, 0,  4 }, { 112100, 0, 0,  5 },
+			{ 127900, 0, 0,  6 }, { 137900, 0, 0,  7 },
+			{ 142800, 1, 1,  4 }, { 167800, 1, 1,  5 },
+			{ 181100, 1, 1,  9 }, { 191500, 0, 1, 15 },
+			{ 225100, 0, 1,  1 }, { 248800, 0, 1,  2 },
+			{ 269300, 0, 1,  3 }, { 284900, 0, 1,  4 },
+			{ 269300, 0, 1,  3 }, { 284900, 0, 1,  4 },
+			{ 335500, 0, 1,  8 }, { 361800, 0, 1,  9 },
+			{ 420200, 0, 1, 10 }, { 468400, 0, 1, 11 },
+			{ 518800, 0, 1, 12 }, { 577000, 0, 1, 13 },
+			{ 620700, 0, 1, 14 }, {      0, 0, 1, 13 }
+	};
+
+	void RFM22B::setBandwidth(unsigned int bw) {
+		BW *_bw;
+		for (_bw = bwtable; _bw->bw != 0; ++_bw) {
+			if (_bw->bw >= bw)
+				break;
+		} // end for //
+		unsigned int x =
+				(_bw->dwn3_bypass << 7) |
+				(_bw->ndec_exp    << 4) |
+				(_bw->filset          );
+		setRegister(RFM22B_Register::IF_FILTER_BANDWIDTH, x);
+	}
+
+	unsigned int RFM22B::getBandwidth() {
+		BW *_bw;
+		unsigned int x = getRegister(RFM22B_Register::IF_FILTER_BANDWIDTH);
+		uint8_t _dwn3_bypass, _ndec_exp, _filset;
+		for (_bw = bwtable; _bw->bw != 0; ++_bw) {
+			_dwn3_bypass = (x & 0x80) >> 7;
+			_ndec_exp    = (x & 0x70) >> 4;
+			_filset      = (x & 0x0f);
+			if ((_bw->dwn3_bypass == _dwn3_bypass) &&
+				(_bw->ndec_exp    == _ndec_exp   ) &&
+				(_bw->filset      == _filset     ))
+			{
+				return _bw->bw;
+			}
+		} // end for //
+		return 0; // Not a useful setting.
+	}
+
 	// Set or get the modulation type
 	void RFM22B::setModulationType(RFM22B_Modulation_Type modulation) {
 		// Get the Modulation Mode Control 2 register
@@ -309,6 +534,29 @@ namespace RFM22B_NS {
 		}
 	}
 	
+	// Set or get the modulation mode
+	void RFM22B::setModulationMode(RFM22B_Modulation_Mode mode) {
+		// Get the Modulation Mode Control 1 register
+		uint8_t mmc1 = this->getRegister(RFM22B_Register::MODULATION_MODE_CONTROL_1);
+
+		// Clear the modtyp bits
+		mmc1 &= ~0x0f;
+
+		// Set the desired modes
+		mmc1 |= (uint8_t)mode;
+
+		// Set the register
+		this->setRegister(RFM22B_Register::MODULATION_MODE_CONTROL_1, mmc1);
+	}
+
+	RFM22B_Modulation_Mode RFM22B::getModulationMode() {
+		// Get the Modulation Mode Control 1 register
+		uint8_t mmc1 = this->getRegister(RFM22B_Register::MODULATION_MODE_CONTROL_1);
+
+		// Determine modtyp bits
+		return (RFM22B_Modulation_Mode) (mmc1 & 0x0f);
+	}
+
 	void RFM22B::setModulationDataSource(RFM22B_Modulation_Data_Source source) {
 		// Get the Modulation Mode Control 2 register
 		uint8_t mmc2 = this->getRegister(RFM22B_Register::MODULATION_MODE_CONTROL_2);
@@ -322,6 +570,7 @@ namespace RFM22B_NS {
 		// Set the register
 		this->setRegister(RFM22B_Register::MODULATION_MODE_CONTROL_2, mmc2);
 	}
+
 	RFM22B_Modulation_Data_Source RFM22B::getModulationDataSource() {
 		// Get the Modulation Mode Control 2 register
 		uint8_t mmc2 = this->getRegister(RFM22B_Register::MODULATION_MODE_CONTROL_2);
@@ -414,6 +663,19 @@ namespace RFM22B_NS {
 		}
 	}
 	
+	// Set or get the preamble length
+	void RFM22B::setPreambleLength(unsigned int len) {
+		if (len >= 1024)
+			throw daisy_exception("Preamble too long", to_string(len));
+		if (len % 4 != 0)
+			len += 4;
+		setRegister(RFM22B_Register::PREAMBLE_LENGTH, len/4);
+	}
+
+	unsigned int RFM22B::getPreambleLength() {
+		return getRegister(RFM22B_Register::PREAMBLE_LENGTH) * 4;
+	}
+
 	// Set or get the GPIO configuration
 	void RFM22B::setGPIOFunction(RFM22B_GPIO gpio, RFM22B_GPIO_Function func) {
 		// Get the GPIO register
@@ -471,7 +733,7 @@ namespace RFM22B_NS {
 	//	This function does not toggle individual pins as with other functions
 	//	It expects a bitwise-ORed combination of the modes you want set
 	void RFM22B::setOperatingMode(RFM22B_Operating_Mode mode) {
-		this->set16BitRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_1, (uint16_t)mode);
+		set16BitRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_1, (uint16_t)mode);
 	}
 
 	// Get operating mode (bitwise-ORed)
@@ -481,18 +743,22 @@ namespace RFM22B_NS {
 
 	// Manuall enter RX or TX mode
 	void RFM22B::enableRXMode() {
-		this->setOperatingMode((RFM22B_Operating_Mode)
-				((uint)RFM22B_Operating_Mode::READY_MODE | (uint)RFM22B_Operating_Mode::RX_MODE));
+		setOperatingMode((RFM22B_Operating_Mode)
+			((uint)getOperatingMode() | (uint)RFM22B_Operating_Mode::RX_MODE));
 	}
+
 	void RFM22B::enableTXMode() {
-		this->setOperatingMode((RFM22B_Operating_Mode)
-				((uint)RFM22B_Operating_Mode::READY_MODE | (uint)RFM22B_Operating_Mode::TX_MODE));
+		setOperatingMode((RFM22B_Operating_Mode)
+			((uint)getOperatingMode() | (uint)RFM22B_Operating_Mode::TX_MODE));
 	}
 
 	// Reset the device
 	void RFM22B::reset() {
-		this->setOperatingMode((RFM22B_Operating_Mode)
-				((uint)RFM22B_Operating_Mode::READY_MODE | (uint)RFM22B_Operating_Mode::RESET));
+		setOperatingMode((RFM22B_Operating_Mode)
+				((uint)getOperatingMode() | (uint)RFM22B_Operating_Mode::RESET));
+		while ((uint)getOperatingMode() & (uint)RFM22B_Operating_Mode::RESET)
+			usleep(1);
+		sleep(1);
 	}
 	
 	// Set or get the trasmit header
@@ -625,6 +891,8 @@ namespace RFM22B_NS {
 		this->setRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_2, 0);
 	}
 	
+
+
 	// Transfer data
 	void RFM22B::transfer(uint8_t *tx, uint8_t *rx, size_t size) {
 		if ((!tx) || (!rx))
@@ -660,13 +928,12 @@ namespace RFM22B_NS {
 		// Enter TX mode
 		this->enableTXMode();
 		// Loop until packet has been sent (device has left TX mode)
-		while (((this->getRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_1)>>3) & 1)) {
+		while ((getRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_1) & 0x08))
 			usleep(1);
-		}
 	};
 	
 	// Receive data (blocking with timeout). Returns number of bytes received
-	int RFM22B::receive(uint8_t *data, size_t length, int timeout) {
+	size_t RFM22B::receive(uint8_t *data, size_t length, int timeout) {
 		// Make sure RX FIFO is empty, ready for new data
 		this->clearRXFIFO();
 
@@ -697,7 +964,7 @@ namespace RFM22B_NS {
 
 		// If timeout occured, return -1
 		if (elapsed >= timeout) {
-			return -1;
+			return 0;
 		}
 
 		// Get length of packet received
@@ -809,6 +1076,13 @@ namespace RFM22B_NS {
 		tx[4] = (value) & 0xFF;
 
 		this->transfer(tx,rx,5);
+	}
+
+	void RFM22B::init(struct register_value rg_rv[]) {
+		uint8_t buf[2];
+		for (; rg_rv->setting[0] != 0x00; ++rg_rv)
+			transfer(rg_rv->setting, buf, 2);
+		sleep(1);
 	}
 
 } // end namespace //

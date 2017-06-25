@@ -58,6 +58,8 @@ namespace DaisyUtils {
 	                     decode_crcmode  (const std::string&          s);
 	RFM22B_NS::RFM22B_CRC_Polynomial
 	                     decode_crcpoly  (const std::string&          s);
+	RFM22B_NS::RFM22B_Modulation_Mode
+	                     decode_modmodes (const std::string&          s);
 
 	void                 noarg           (const std::string&          s);
 
@@ -87,6 +89,8 @@ namespace DaisyUtils {
 			RFM22B_NS::RFM22B_CRC_Mode                                v);
 	std::string          print           (
 			RFM22B_NS::RFM22B_CRC_Polynomial                          v);
+	std::string          print           (
+			RFM22B_NS::RFM22B_Modulation_Mode                         v);
 
 	std::string          print_help      (const std::string&        cmd);
 	std::string          print_status    (uint8_t                     v);

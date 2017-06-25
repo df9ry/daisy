@@ -313,13 +313,37 @@ namespace DaisyUtils {
 			{ "CCITT",    RFM22B_CRC_Polynomial::CCITT    },
 			{ "CRC16",    RFM22B_CRC_Polynomial::CRC16    },
 			{ "IEC16",    RFM22B_CRC_Polynomial::IEC16    },
-			{ "BAICHEVA", RFM22B_CRC_Polynomial::BIACHEVA },
 			{ "BIACHEVA", RFM22B_CRC_Polynomial::BIACHEVA }
 		};
 		map_t::const_iterator i = s2t.find(toupper(s));
 		if (i == s2t.end())
 			throw daisy_exception("Value not found", s);
 		return i->second;
+	}
+
+	static RFM22B_Modulation_Mode decode_modmode(const std::string& s) {
+		typedef map<string, RFM22B_Modulation_Mode> map_t;
+		const map_t s2t {
+			{ "WHITENING",            RFM22B_Modulation_Mode::WHITENING            },
+			{ "MANCHESTER",           RFM22B_Modulation_Mode::MANCHESTER           },
+			{ "MANCHESTER_INVERSION", RFM22B_Modulation_Mode::MANCHESTER_INVERSION },
+			{ "MANCHESTER_POLARITY",  RFM22B_Modulation_Mode::MANCHESTER_POLARITY  },
+		};
+		map_t::const_iterator i = s2t.find(toupper(s));
+		if (i == s2t.end())
+			throw daisy_exception("Value not found", s);
+		return i->second;
+	}
+
+	RFM22B_Modulation_Mode decode_modmodes(const std::string& s) {
+		uint16_t x = 0;
+		vector<string> v = split(s, ',');
+		for (vector<string>::const_iterator iter = v.begin();
+				iter != v.end(); ++iter)
+		{
+			x |= (uint16_t)decode_modmode(*iter);
+		}
+		return (RFM22B_Modulation_Mode) x;
 	}
 
 	string print(const std::string& s) {
@@ -625,12 +649,42 @@ namespace DaisyUtils {
 			{ RFM22B_CRC_Polynomial::CCITT   , "CCITT"    },
 			{ RFM22B_CRC_Polynomial::CRC16   , "CRC16"    },
 			{ RFM22B_CRC_Polynomial::IEC16   , "IEC16"    },
-			{ RFM22B_CRC_Polynomial::BIACHEVA, "BAICHEVA" }
+			{ RFM22B_CRC_Polynomial::BIACHEVA, "BIACHEVA" }
 		};
 		map_t::const_iterator i = t2s.find(v);
 		if (i == t2s.end())
 			throw daisy_exception("RFM22B_CRC_Polynomial value not found");
 		return i->second;
+	}
+
+	string print(RFM22B_Modulation_Mode v) {
+		typedef map<RFM22B_Modulation_Mode, string> map_t;
+		const map_t t2s {
+			{ RFM22B_Modulation_Mode::WHITENING             , "WHITENING"             },
+			{ RFM22B_Modulation_Mode::MANCHESTER            , "MANCHESTER"            },
+			{ RFM22B_Modulation_Mode::MANCHESTER_INVERSION  , "MANCHESTER_INVERSION"  },
+			{ RFM22B_Modulation_Mode::MANCHESTER_POLARITY   , "MANCHESTER_POLARITY"   },
+		};
+		uint16_t x = (uint16_t) v;
+		ostringstream oss;
+		bool first = true;
+		for (map_t::const_iterator iter = t2s.begin();
+				iter != t2s.end(); ++iter)
+		{
+			uint16_t b = (uint16_t) iter->first;
+			if (x & b) {
+				map_t::const_iterator i = t2s.find((RFM22B_Modulation_Mode)b);
+				if (i == t2s.end())
+					throw daisy_exception("RFM22_Modulation_Mode value not found");
+				if (first)
+					first = false;
+				else
+					oss << ',';
+				oss << i->second;
+			}
+		}
+		string result = oss.str();
+		return (result.length() > 0)?result:"\"\"";
 	}
 
 	void noarg(const std::string& s) {
@@ -685,6 +739,9 @@ namespace DaisyUtils {
 			"AUTOMATIC_TRANSMISSION|RX_MULTI_PACKET|READY_MODE|TUNE_MODE|"
 			"RX_MODE|TX_MODE|CRYSTAL_OSCILLATOR_SELECT|ENABLE_WAKE_UP_TIMER|"
 			"ENABLE_LOW_BATTERY_DETECT|RESET";
+	static const string help_modmodes =
+			"list of (separate with comma):\n"
+			"WHITENING|MANCHESTER|MANCHESTER_INVERSION|MANCHESTER_POLARITY";
 	static const string help_crcmode =
 			"One of:\n"
 			"CRC_DISABLED|CRC_DATA_ONLY|CRC_NORMAL";
@@ -697,7 +754,8 @@ namespace DaisyUtils {
 			"datarate|modtype|mds|dcc|txpower|gpio0func|gpio1func|gpio2func|"
 			"inte|intd|ints|opmodes|rxe|txe|txhdr|crcmode|crcpoly|txamft|"
 			"txamet|rxamft|rxlen|txlen|rxclr|txclr|help|shell|devicetype|"
-			"deviceversion|devicestatus|send";
+			"deviceversion|devicestatus|send|modmodes|bandwidth|preamble|"
+			"receive|narrow|medium|wide";
 
 	string print_help (const std::string& cmd) {
 		typedef map<string, string> map_t;
@@ -742,6 +800,13 @@ namespace DaisyUtils {
 			{ "deviceversion", help_noarg      },
 			{ "devicestatus",  help_noarg      },
 			{ "send",          help_uint32     },
+			{ "modmodes",      help_modmodes   },
+			{ "bandwidth",     help_uint32     },
+			{ "preamble",      help_uint32     },
+			{ "receive",       help_uint32     },
+			{ "narrow",        help_noarg      },
+			{ "medium",        help_noarg      },
+			{ "wide",          help_noarg      },
 		};
 		map_t::const_iterator i = c2h.find(tolower(cmd));
 		if (i == c2h.end())

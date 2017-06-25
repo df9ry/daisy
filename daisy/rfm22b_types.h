@@ -47,7 +47,6 @@ namespace RFM22B_NS {
 		IEC16										= 0x02,
 		BIACHEVA									= 0x03,
 	};
-	#define BAICHEVA BIACHEVA // Seems like Biacheva is a typo in the data sheet
 
 	enum class RFM22B_Data_Clock_Configuration {
 		NONE										= 0x00,
@@ -128,6 +127,15 @@ namespace RFM22B_NS {
 		ENABLE_LOW_BATTERY_DETECT					= (1 << 14),
 		RESET										= (1 << 15)
 	};
+
+	enum class RFM22B_Modulation_Mode {
+		WHITENING									= (1 << 0),
+		MANCHESTER									= (1 << 1),
+		MANCHESTER_INVERSION						= (1 << 2),
+		MANCHESTER_POLARITY							= (1 << 3)
+	};
+
+
 
 } // end namespace //
 

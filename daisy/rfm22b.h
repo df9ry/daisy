@@ -32,9 +32,12 @@ namespace RFM22B_NS {
 	enum class RFM22B_Interrupt;
 	enum class RFM22B_Modulation_Data_Source;
 	enum class RFM22B_Modulation_Type;
+	enum class RFM22B_Modulation_Mode;
 	enum class RFM22B_Operating_Mode;
 	enum class RFM22B_CRC_Polynomial;
 	enum class RFM22B_Register;
+
+	struct register_value { uint8_t setting[2]; };
 
 	class RFM22B {
 	public:
@@ -62,11 +65,19 @@ namespace RFM22B_NS {
 		// Get the header address.
 		std::vector<uint8_t> getAddress();
 
+		// Set standard modes:
+		void setNarrowMode();
+		void setMediumMode();
+		void setWideMode();
+
 		// Tune for some seconds:
 		void tune(unsigned int seconds);
 
 		// Send packages:
-		void send(unsigned int numpkts);
+		void tx_packages(unsigned int numpkts);
+
+		// Receive packages:
+		size_t rx_packages(uint8_t* pb, size_t cb, unsigned int timeout);
 
 		// Set or get the carrier frequency (in Hz);
 		void setCarrierFrequency(unsigned int frequency);
@@ -91,9 +102,17 @@ namespace RFM22B_NS {
 		void setDataRate(unsigned int rate);
 		unsigned int getDataRate();
 
+		// Set or get the bandwidth in hz.
+		void setBandwidth(unsigned int bw);
+		unsigned int getBandwidth();
+
 		// Set or get the modulation type
 		void setModulationType(RFM22B_Modulation_Type modulation);
 		RFM22B_Modulation_Type getModulationType();
+
+		// Set or get the modulation mode
+		void setModulationMode(RFM22B_Modulation_Mode mode);
+		RFM22B_Modulation_Mode getModulationMode();
 
 		// Set or get the modulation data source
 		void setModulationDataSource(RFM22B_Modulation_Data_Source source);
@@ -106,6 +125,10 @@ namespace RFM22B_NS {
 		// Set or get the transmission power
 		void setTransmissionPower(uint8_t power);
 		uint8_t getTransmissionPower();
+
+		// Set or get the preamble length
+		void setPreambleLength(uint32_t len);
+		uint32_t getPreambleLength();
 
 		// Set or get the GPIO configuration
 		void setGPIOFunction(RFM22B_GPIO gpio, RFM22B_GPIO_Function funct);
@@ -179,7 +202,7 @@ namespace RFM22B_NS {
 		void send(uint8_t *data, size_t length);
 
 		// Receive data (blocking with timeout). Returns number of bytes received
-		int receive(uint8_t *data, size_t length, int timeout=30000);
+		size_t receive(uint8_t *data, size_t length, int timeout=30000);
 
 		// Transfer
 		void transfer(uint8_t *tx, uint8_t *rx, size_t size);
@@ -194,8 +217,8 @@ namespace RFM22B_NS {
 
 		static const uint8_t MAX_PACKET_LENGTH = 64;
 	private:
-
 		void setFIFOThreshold(RFM22B_Register reg, uint8_t thresh);
+		void init(struct register_value rg_rv[]);
 
 		std::mutex           transfer_lock;
 		std::vector<uint8_t> addr {};
