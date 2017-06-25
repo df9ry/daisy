@@ -276,7 +276,7 @@ namespace RFM22B_NS {
 		cout.flush();
 		Timer timer;
 		for (unsigned int n; n < numpkts; ++n) {
-			send(buf, sizeof(buf));
+			send(buf, sizeof(buf)-16);
 		}
 		double elapsed = timer.elapsed();
 		setModulationDataSource(mds_save);
@@ -293,9 +293,9 @@ namespace RFM22B_NS {
 	}
 
 	size_t RFM22B::rx_packages(uint8_t* pb, size_t cb, unsigned int timeout) {
-		cout << "No listening for a package ... ";
+		cout << "Now listening for packages ... ";
 		cout.flush();
-		size_t result = receive(pb, cb, 1000*timeout);
+		size_t result = receive(pb, cb, timeout);
 		cout << result << " octets" << endl;
 		return result;
 	}
@@ -700,20 +700,71 @@ namespace RFM22B_NS {
 		return (RFM22B_GPIO_Function)(gpioX & ((1<<5)-1));
 	}
 	
+#if SIMULATE_INTERRUPTS
+	void RFM22B::intrtask() {
+		while(!intrstop) {
+			di();
+			// Get interrupt status register
+			uint16_t intrstat =
+					get16BitRegister(RFM22B_Register::INTERRUPT_STATUS_1);
+			// mask out all not enabled bits:
+			intrstat &= intrmask;
+			if (intrstat != intrhold) {
+				intrhold = intrstat;
+				intoccurred.unlock();
+				continue;
+			}
+			if (intrstop)
+				break;
+			ei();
+			usleep(INTERRUPT_POLL_TIME);
+		} // end while //
+	}
+
+	static void task(RFM22B* me) {
+		try {
+			me->intrtask();
+		}
+		catch (...) {
+			cerr << "!!! Exception in interrupt thread" << endl;
+		}
+	}
+#endif
+
 	// Enable or disable interrupts
 	void RFM22B::setInterruptEnable(RFM22B_Interrupt interrupt, bool enable) {
+#if SIMULATE_INTERRUPTS
+		if (enable) {
+			intrhold &= ~(uint16_t) interrupt; // Initialize hold
+			if (!intrmask) {
+				intrstop = false;
+				intrhold = 0x0000;
+				intoccurred.lock();
+				intrthread = move(thread(task, this));
+			}
+			intrmask |= (uint16_t) interrupt;
+		} else if (intrmask & (uint16_t) interrupt) {
+			intrhold &= ~(uint16_t) interrupt; // Initialize hold
+			intrmask &= ~(uint16_t) interrupt;
+			if (!intrmask) {
+				intrstop = true;
+				ei(); // To allow stop flag detection.
+				intrthread.join();
+				intrthread = move(thread());
+			}
+		}
+#else
 		// Get the (16 bit) register value
-		uint16_t intEnable = this->get16BitRegister(RFM22B_Register::INTERRUPT_ENABLE_1);
-
+		uint16_t intEnable = get16BitRegister(RFM22B_Register::INTERRUPT_ENABLE_1);
 		// Either enable or disable the interrupt
 		if (enable) {
 			intEnable |= (uint16_t)interrupt;
 		} else {
 			intEnable &= ~(uint16_t)interrupt;
 		}
-
 		// Set the (16 bit) register value
-		this->set16BitRegister(RFM22B_Register::INTERRUPT_ENABLE_1, intEnable);
+		set16BitRegister(RFM22B_Register::INTERRUPT_ENABLE_1, intEnable);
+#endif
 	}
 	
 	// Get the status of an interrupt
@@ -744,12 +795,28 @@ namespace RFM22B_NS {
 	// Manuall enter RX or TX mode
 	void RFM22B::enableRXMode() {
 		setOperatingMode((RFM22B_Operating_Mode)
-			((uint)getOperatingMode() | (uint)RFM22B_Operating_Mode::RX_MODE));
+			((uint)getOperatingMode() |
+			 (uint)RFM22B_Operating_Mode::RX_MODE |
+			 (uint)RFM22B_Operating_Mode::RX_MULTI_PACKET));
+	}
+
+	void RFM22B::disableRXMode() {
+		setOperatingMode((RFM22B_Operating_Mode)
+			((uint)getOperatingMode() &
+			 ~(uint)RFM22B_Operating_Mode::RX_MODE &
+			 ~(uint)RFM22B_Operating_Mode::RX_MULTI_PACKET));
 	}
 
 	void RFM22B::enableTXMode() {
 		setOperatingMode((RFM22B_Operating_Mode)
-			((uint)getOperatingMode() | (uint)RFM22B_Operating_Mode::TX_MODE));
+			((uint)getOperatingMode() |
+			 (uint)RFM22B_Operating_Mode::TX_MODE));
+	}
+
+	void RFM22B::disableTXMode() {
+		setOperatingMode((RFM22B_Operating_Mode)
+			((uint)getOperatingMode() &
+			 ~(uint)RFM22B_Operating_Mode::TX_MODE));
 	}
 
 	// Reset the device
@@ -863,15 +930,28 @@ namespace RFM22B_NS {
 	uint8_t RFM22B::getRSSI() {
 		return this->getRegister(RFM22B_Register::RECEIVED_SIGNAL_STRENGTH_INDICATOR);
 	}
+
 	// Get input power (in dBm)
 	//	Coefficients approximated from the graph in Section 8.10 of the datasheet
 	int8_t RFM22B::getInputPower() {
 		return 0.56*this->getRSSI()-128.8;
 	}
 	
+	// Set squelch
+	void RFM22B::setSquelch(uint8_t level) {
+		setRegister(RFM22B_Register::RSSI_THRESHOLD_FOR_CLEAR_CHANNEL_INDICATOR,
+				level);
+	}
+
+	// Get squelch
+	uint8_t RFM22B::getSquelch() {
+		return getRegister(
+				RFM22B_Register::RSSI_THRESHOLD_FOR_CLEAR_CHANNEL_INDICATOR);
+	}
+
 	// Get length of last received packet
 	uint8_t RFM22B::getReceivedPacketLength() {
-		return this->getRegister(RFM22B_Register::RECEIVED_PACKET_LENGTH);
+		return getRegister(RFM22B_Register::RECEIVED_PACKET_LENGTH);
 	}
 	
 	// Set length of packet to be transmitted
@@ -881,18 +961,24 @@ namespace RFM22B_NS {
 	
 	void RFM22B::clearRXFIFO() {
 		//Toggle ffclrrx bit high and low to clear RX FIFO
-		this->setRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_2, 2);
-		this->setRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_2, 0);
+		uint8_t x = getRegister(
+				RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_2);
+		setRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_2,
+				x | 0x02);
+		setRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_2,
+				x & ~0x02);
 	}
 	
 	void RFM22B::clearTXFIFO() {
 		//Toggle ffclrtx bit high and low to clear TX FIFO
-		this->setRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_2, 1);
-		this->setRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_2, 0);
+		uint8_t x = getRegister(
+				RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_2);
+		setRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_2,
+				x | 0x01);
+		setRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_2,
+				x & ~0x01);
 	}
 	
-
-
 	// Transfer data
 	void RFM22B::transfer(uint8_t *tx, uint8_t *rx, size_t size) {
 		if ((!tx) || (!rx))
@@ -933,56 +1019,181 @@ namespace RFM22B_NS {
 	};
 	
 	// Receive data (blocking with timeout). Returns number of bytes received
-	size_t RFM22B::receive(uint8_t *data, size_t length, int timeout) {
-		// Make sure RX FIFO is empty, ready for new data
-		this->clearRXFIFO();
+	size_t RFM22B::receive(uint8_t *_data, size_t length, int timeout) {
+		clearRXFIFO();
+		di();
+		setInterruptEnable(RFM22B_Interrupt::RSSI,                    true);
+		setInterruptEnable(RFM22B_Interrupt::SYNC_WORD,               true);
+		setInterruptEnable(RFM22B_Interrupt::CRC_ERROR,               true);
+		setInterruptEnable(RFM22B_Interrupt::FIFO_UNDERFLOW_OVERFLOW, true);
+		setInterruptEnable(RFM22B_Interrupt::VALID_PACKET_RECEIVED,   true);
+		setInterruptEnable(RFM22B_Interrupt::RX_FIFO_ALMOST_FULL_INT, true);
+		Timer timer;
+		//setRXFIFOAlmostFullThreshold(40); // Very pessimistic!
+		int rxbffaful = getRXFIFOAlmostFullThreshold();
+		bool f, squelch = false, preamble = false, sync = false,
+				crcerror = false, valid = false, fuow = false;
+		uint32_t crcerrors = 0, overorunderflows = 0, valids = 0;
+		uint64_t octets = 0;
+		uint8_t data[256];
+		uint8_t txb[65]; uint8_t rxb[65];
+		txb[0] = 0x7f; memset(&txb[1], 0x00, sizeof(txb)-1);
+		int alreadyreceived = 0, packagelength = 0;
+		uint8_t *rxptr = data;
+		bool bad = false; // Error flag
 
-		// Enter RX mode
-		this->enableRXMode();
+		if (verbose)
+			cerr << "** Start receive **" << endl;
+		enableRXMode();
+		ei();
+		while (timer.elapsed() < timeout) {
+			int32_t status = try_waitforinterrupt();
+			if (status < 0) {
+				usleep(INTERRUPT_POLL_TIME);
+				continue;
+			}
 
-		// Initialise rx and tx arrays
-		uint8_t tx[MAX_PACKET_LENGTH+1] = { 0 };
-		uint8_t rx[MAX_PACKET_LENGTH+1] = { 0 };
+			/*** RSSI ***/
+			f = (status & (uint16_t) RFM22B_Interrupt::RSSI);
+			if (f != squelch) {
+				if (f) {
+					alreadyreceived = 0;
+					packagelength = 0;
+					rxptr = data;
+					bad = false;
+					if (verbose)
+						cout << "<<<Squelch open>>>" << endl;
+				} else {
+					if (verbose)
+						cout << "<<<Squelch closed>>>" << endl;
+				}
+			}
+			squelch = f;
 
-		// Set FIFO register address
-		tx[0] = (uint8_t)RFM22B_Register::FIFO_ACCESS;
+			/*** SYNC_WORD ***/
+			f = (status & (uint16_t) RFM22B_Interrupt::SYNC_WORD);
+			if (f && !sync) {
+				packagelength = 0;
+				alreadyreceived = 0;
+				uint8_t *rxptr = data;
+				bad = false;
+				valid = false;
+				if (verbose)
+					cout << "<<<Sync>>>" << endl;
+			}
+			sync = f;
 
-		// Timing for the interrupt loop timeout
-		struct timeval start, end;
-		gettimeofday(&start, NULL);
-		long elapsed = 0;
+			/*** RX_FIFO_ALMOST_FULL_INT ***/
+			f = (status & (uint16_t) RFM22B_Interrupt::RX_FIFO_ALMOST_FULL_INT);
+			if (f) {
+				if (!packagelength)
+					packagelength = getReceivedPacketLength();
+				int readlen = min(rxbffaful, packagelength - alreadyreceived);
+				transfer(txb, rxb, readlen);
+				if (verbose)
+					cout << "<<<RX FIFO almost full:"
+						 << packagelength << ":"
+						 << alreadyreceived << ":"
+						 << readlen << ">>>"
+						 << endl;
+				if ((!bad) && (alreadyreceived + readlen < sizeof(data))) {
+					memcpy(rxptr, &rxb[1], readlen);
+					alreadyreceived += readlen;
+					rxptr += readlen;
+				} else {
+					bad = true;
+					if (verbose)
+						cout << "<<<Too much data:"
+							 << packagelength << ":"
+							 << alreadyreceived << ":"
+							 << readlen << ">>>"
+							 << endl;
+				}
+			}
 
-		// Loop endlessly on interrupt or timeout
-		//	Don't use interrupt registers here as these don't seem to behave consistently
-		//	Watch the operating mode register for the device leaving RX mode. This is indicitive
-		//	of a valid packet being received
-		while (((this->getRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_1)>>2) & 1) && elapsed < timeout) {
-			// Determine elapsed time
-			gettimeofday(&end, NULL);
-			elapsed = (end.tv_usec - start.tv_usec)/1000 + (end.tv_sec - start.tv_sec)*1000;
-		}
+			/*** VALID_PACKET_RECEIVED ***/
+			f = (status & (uint16_t) RFM22B_Interrupt::VALID_PACKET_RECEIVED);
+			if (f & !valid) {
+				valid = true;
+				if (!packagelength)
+					packagelength = getReceivedPacketLength();
+				int readlen = packagelength - alreadyreceived;
+				if ((readlen < 0) || readlen >= sizeof(rxb)) {
+					bad = true;
+					if (verbose)
+						cout << "<<<Inconsistent package length:"
+							 << packagelength << ":"
+							 << alreadyreceived << ":"
+							 << readlen << ">>>"
+							 << endl;
+					clearRXFIFO();
+				} else {
+					transfer(txb, rxb, readlen);
+					if (verbose)
+						cout << "<<<Valid package received:"
+						     << packagelength << ":"
+							 << alreadyreceived << ":"
+							 << readlen << ">>>"
+						     << endl;
+					if ((!bad) && (alreadyreceived + readlen <= sizeof(data))) {
+						memcpy(rxptr, &rxb[1], readlen);
+						alreadyreceived += readlen;
+						++valids;
+						///TODO: Do something with the data
+						octets += alreadyreceived;
+						alreadyreceived = 0;
+						rxptr = data;
+						packagelength = 0;
+						bad = false;
+					} else {
+						if (verbose && !bad)
+							cout << "<<<Too much data:"
+							 	 << packagelength << ":"
+								 << alreadyreceived << ":"
+								 << readlen << ">>>"
+								 << endl;
+						bad = true;
+					}
+				}
+			}
 
-		// If timeout occured, return -1
-		if (elapsed >= timeout) {
-			return 0;
-		}
+			/*** FIFO_UNDERFLOW_OVERFLOW ***/
+			f = (status & (uint16_t) RFM22B_Interrupt::FIFO_UNDERFLOW_OVERFLOW);
+			if (f & !fuow) {
+				++overorunderflows;
+				clearRXFIFO();
+				bad = true;
+				if (verbose)
+					cout << "<<<Over-/Underflow>>>" << endl;
+			}
+			fuow = f;
 
-		// Get length of packet received
-		uint8_t rxLength = this->getReceivedPacketLength();
-	
-		if (rxLength > length) {
-			rxLength = length;
-		}
+			f = (status & (uint16_t) RFM22B_Interrupt::CRC_ERROR);
+			if (f && !crcerror) {
+				if (verbose)
+					cout << "<<<CRC error>>>" << endl;
+				++crcerrors;
+			}
+			crcerror = f;
 
-		// Make the transfer
-		this->transfer(tx,rx,rxLength+1);
-
-		// Copy the data to the output array
-		for (int i = 1; i <= rxLength; i++) {
-			data[i-1] = rx[i];
-		}
-
-		return rxLength;
+			ei();
+		} // end while //
+		disableRXMode();
+		setInterruptEnable(RFM22B_Interrupt::RSSI,                    false);
+		setInterruptEnable(RFM22B_Interrupt::SYNC_WORD,               false);
+		setInterruptEnable(RFM22B_Interrupt::CRC_ERROR,               false);
+		setInterruptEnable(RFM22B_Interrupt::FIFO_UNDERFLOW_OVERFLOW, false);
+		setInterruptEnable(RFM22B_Interrupt::VALID_PACKET_RECEIVED,   false);
+		setInterruptEnable(RFM22B_Interrupt::RX_FIFO_ALMOST_FULL_INT, false);
+		ei();
+		cerr << endl
+			 << "  RX: "
+			 << valids           << " pkgs, "
+			 << octets           << " octets, "
+			 << crcerrors        << " CRC err, "
+			 << overorunderflows << " o/u flows **"
+			 << endl;
+		return 0;
 	};
 	
 	// Helper function to read a single byte from the device

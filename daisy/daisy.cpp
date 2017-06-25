@@ -30,8 +30,6 @@ using namespace std;
 using namespace RFM22B_NS;
 using namespace DaisyUtils;
 
-static bool f_verbose = true;
-
 static void shell(RFM22B& chip);
 static void help(ostream &os, bool f_quiet = false);
 
@@ -51,12 +49,12 @@ static const command_map_type command_map = {
 	{ "verbose=", command {
 	  "<on|off>",  "Set verbose flag",
 			[](RFM22B& chip, const string& arg)
-			{ f_verbose = decode_bool(arg); }}},
+			{ chip.setVerbose(decode_bool(arg)); }}},
 		{ "verbose?", command {
 		  "",  "Get verbose flag",
 				[](RFM22B& chip, const string& arg)
 				{ noarg(arg);
-				  cout << "verbose=" << print(f_verbose) << endl; }}},
+				  cout << "verbose=" << print(chip.getVerbose()) << endl; }}},
 	{ "call=", command {
 	  "<call>{-<SSID>}",  "Set callsign, optional with SSID",
 			[](RFM22B& chip, const string& arg)
@@ -306,7 +304,7 @@ static const command_map_type command_map = {
 	{ "help", command {
 	  "", "Print help",
 			[](RFM22B& chip, const string& arg)
-			{ noarg(arg); help(cout, !f_verbose); }}},
+			{ noarg(arg); help(cout, !chip.getVerbose()); }}},
 	{ "help=", command {
 	  "<command>", "Print the possible values of the command",
 			[](RFM22B& chip, const string& arg)
@@ -393,6 +391,15 @@ static const command_map_type command_map = {
 		[](RFM22B& chip, const string& arg)
 		{ noarg(arg);
 		  chip.setWideMode(); }}},
+	{ "squelch=", command {
+		"<0..255>", "Set squelch level",
+		[](RFM22B& chip, const string& arg)
+		{ chip.setSquelch(decode_uint8(arg)); }}},
+	{ "squelch?", command {
+		"", "Get squelch level",
+		[](RFM22B& chip, const string& arg)
+		{ noarg(arg);
+		  cout << "squelch=" << print(chip.getSquelch()) << endl; }}},
 };
 
 static void help(ostream &os, bool f_quiet) {
@@ -464,7 +471,7 @@ static void shell(RFM22B& chip) {
 		}
 		catch (::daisy_exception &ex) {
 			cerr << "Error: " << ex.what() << endl;
-			help(cerr, !f_verbose);
+			help(cerr, false);
 		}
 		catch (std::exception &ex) {
 			cerr << "Error: " << ex.what() << endl;
@@ -507,7 +514,7 @@ int main(int argc, char* argv[]) {
 	}
 	catch (::daisy_exception &ex) {
 		cerr << "Error: " << ex.what() << endl;
-		help(cerr, !f_verbose);
+		help(cerr, false);
 	}
 	catch (std::exception &ex) {
 		cerr << "Error: " << ex.what() << endl;

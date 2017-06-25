@@ -23,4 +23,7 @@
 #define DEFAULT_RX_TIMEOUT    30 // In s
 #define DEFAULT_NUM_PACKAGE  100
 
+#define SIMULATE_INTERRUPTS true
+#define INTERRUPT_POLL_TIME 1000 // In us
+
 #endif

@@ -155,7 +155,8 @@ namespace RFM22B_NS {
 	enum class RFM22B_GPIO {
 		GPIO0										= RFM22B_Register::GPIO0_CONFIGURATION,
 		GPIO1										= RFM22B_Register::GPIO1_CONFIGURATION,
-		GPIO2										= RFM22B_Register::GPIO2_CONFIGURATION
+		GPIO2										= RFM22B_Register::GPIO2_CONFIGURATION,
+		SIMUL										= 0x80 // Simulated interrupt support
 	};
 
 } // end namespace //

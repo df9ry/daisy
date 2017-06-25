@@ -755,7 +755,7 @@ namespace DaisyUtils {
 			"inte|intd|ints|opmodes|rxe|txe|txhdr|crcmode|crcpoly|txamft|"
 			"txamet|rxamft|rxlen|txlen|rxclr|txclr|help|shell|devicetype|"
 			"deviceversion|devicestatus|send|modmodes|bandwidth|preamble|"
-			"receive|narrow|medium|wide";
+			"receive|narrow|medium|wide|sqelch";
 
 	string print_help (const std::string& cmd) {
 		typedef map<string, string> map_t;
@@ -807,6 +807,7 @@ namespace DaisyUtils {
 			{ "narrow",        help_noarg      },
 			{ "medium",        help_noarg      },
 			{ "wide",          help_noarg      },
+			{ "squelch",       help_uint8      },
 		};
 		map_t::const_iterator i = c2h.find(tolower(cmd));
 		if (i == c2h.end())

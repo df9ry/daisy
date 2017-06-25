@@ -21,6 +21,9 @@
 
 #include <vector>
 #include <mutex>
+#include <thread>
+
+#include "defaults.h"
 
 namespace RFM22B_NS {
 
@@ -146,13 +149,17 @@ namespace RFM22B_NS {
 		//	This function does not toggle individual pins as with other functions
 		//	It expects a bitwise-ORed combination of the modes you want set
 		void setOperatingMode(RFM22B_Operating_Mode mode);
-
-		// Get operating mode (bitwise-ORed)
 		RFM22B_Operating_Mode getOperatingMode();
+
+		// Set or get squelch level
+		void setSquelch(uint8_t level);
+		uint8_t getSquelch();
 
 		// Manually enable RX or TX modes
 		void enableRXMode();
+		void disableRXMode();
 		void enableTXMode();
+		void disableTXMode();
 
 		// Set or get the transmit header
 		void setTransmitHeader(uint32_t header);
@@ -194,9 +201,11 @@ namespace RFM22B_NS {
 
 		// Control the debug flag
 		void setDebug(bool f) { debug = f; }
-
-		// Get the debug flag
 		bool getDebug() { return debug; }
+
+		// Control the verbose flag
+		void setVerbose(bool f) { verbose = f; }
+		bool getVerbose() { return verbose; }
 
 		// Send data
 		void send(uint8_t *data, size_t length);
@@ -215,6 +224,19 @@ namespace RFM22B_NS {
 		void set16BitRegister(RFM22B_Register reg, uint16_t value);
 		void set32BitRegister(RFM22B_Register reg, uint32_t value);
 
+#ifdef SIMULATE_INTERRUPTS
+		void intrtask(); // Int simulation task
+		uint16_t waitforinterrupt() {
+			intoccurred.lock();
+			return intrhold;
+		}
+		int32_t try_waitforinterrupt() {
+			if (intoccurred.try_lock())
+				return intrhold;
+			return -1;
+		}
+#endif
+
 		static const uint8_t MAX_PACKET_LENGTH = 64;
 	private:
 		void setFIFOThreshold(RFM22B_Register reg, uint8_t thresh);
@@ -223,8 +245,21 @@ namespace RFM22B_NS {
 		std::mutex           transfer_lock;
 		std::vector<uint8_t> addr {};
 		bool                 debug = false;
+		bool                 verbose = false;
 		uint8_t              tx[MAX_PACKET_LENGTH+1];
 		uint8_t              rx[MAX_PACKET_LENGTH+1];
+
+#ifdef SIMULATE_INTERRUPTS
+		// Support for simulated interrupts:
+		std::thread          intrthread;
+		volatile bool        intrstop = false;  // Terminate int
+		std::mutex           intlocked;         // Avoid interrupts
+		std::mutex           intoccurred;       // Wait for interrupt
+		volatile uint16_t    intrmask = 0x0000; // Enable mask
+		volatile uint16_t    intrhold = 0x0000; // Old int status
+		void di() { intlocked.lock();   }       // Disable interrupts
+		void ei() { intlocked.unlock(); }       // Enable interrupts
+#endif
 	};
 
 } // end namespace //
