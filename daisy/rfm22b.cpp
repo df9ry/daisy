@@ -23,6 +23,7 @@
 #include <cstring>
 #include <chrono>
 #include <random>
+#include <algorithm>
 
 #include <unistd.h>
 #include <sys/time.h>
@@ -39,8 +40,7 @@ using namespace std;
 
 static int init_state = 0;
 
-class Timer
-{
+class Timer {
 public:
     Timer() : beg_(clock_::now()) {}
     void reset() { beg_ = clock_::now(); }
@@ -51,6 +51,52 @@ private:
     typedef std::chrono::high_resolution_clock clock_;
     typedef std::chrono::duration<double, std::ratio<1> > second_;
     std::chrono::time_point<clock_> beg_;
+};
+
+class Random {
+public:
+    Random() = default;
+    Random(std::mt19937::result_type seed) : eng(seed) {}
+    uint8_t get() {
+    	return std::uniform_int_distribution<uint8_t>{0, 255}(eng);
+    }
+private:
+    std::mt19937 eng{std::random_device{}()};
+};
+
+class RandomPackageGenerator {
+public:
+	RandomPackageGenerator(size_t n): n_packages{n}	{}
+
+	int get(uint8_t *pb_buf, size_t cb_buf) {
+		if (i_packages++ >= n_packages) {
+			elapsed = timer.elapsed();
+			return -1;
+		}
+		size_t cb = rnd.get() % cb_buf;
+		for (int i = 0; i < cb; ++i)
+			pb_buf[i] = rnd.get();
+		n_octets += cb;
+		return cb;
+	}
+
+	void printStatistics() {
+		double ms_per_octet =  1000 * ( elapsed / (double)n_octets );
+		double rate = 8.0 / ms_per_octet;
+		cout << n_octets << " octets" << endl;
+		cout << setprecision(4);
+		cout << elapsed << "s total" << endl;
+		cout << ms_per_octet << " ms/octet" << endl;
+		cout << rate << " kbps" << endl;
+	}
+
+private:
+	Random   rnd;
+	Timer    timer;
+	size_t   n_packages;
+	size_t   i_packages  = 0;
+	uint64_t n_octets    = 0;
+	double   elapsed     = 0.0;
 };
 
 namespace RFM22B_NS {
@@ -261,43 +307,15 @@ namespace RFM22B_NS {
 	}
 	
 	void RFM22B::tx_packages(unsigned int numpkts) {
-		RFM22B_Modulation_Data_Source mds_save = getModulationDataSource();
-		setModulationDataSource(RFM22B_Modulation_Data_Source::FIFO);
-		clearTXFIFO();
-		uint8_t x = 0;
-		uint8_t buf[MAX_PACKET_LENGTH];
-	    std::mt19937 rng;
-	    rng.seed(std::random_device()());
-	    // distribution in range [0, 255]
-	    std::uniform_int_distribution<std::mt19937::result_type> dist(0,255);
-		for (int i = 0; i < MAX_PACKET_LENGTH; ++i)
-			buf[i] = dist(rng);
 		cout << "Now sending " << numpkts << " packages ... ";
 		cout.flush();
-		Timer timer;
-		for (unsigned int n; n < numpkts; ++n) {
-			send(buf, sizeof(buf)-16);
-		}
-		double elapsed = timer.elapsed();
-		setModulationDataSource(mds_save);
-		double ms_per_package = 1000.0 * ( elapsed / (double)numpkts );
-		double n_octets = (double)numpkts * (double)sizeof(buf);
-		double ms_per_octet =  1000 * ( elapsed / n_octets );
-		double rate = 8.0 / ms_per_octet;
-		cout << (unsigned long long)n_octets << " octets" << endl;
-		cout << setprecision(3);
-		cout << elapsed << "s total" << endl;
-		cout << ms_per_package << " ms/package" << endl;
-		cout << ms_per_octet << " ms/octet" << endl;
-		cout << rate << " kbps" << endl;
+		RandomPackageGenerator rpg(numpkts);
+		send([&rpg](uint8_t *pb, size_t cb) -> int{ return rpg.get(pb, cb); });
+		rpg.printStatistics();
 	}
 
 	size_t RFM22B::rx_packages(uint8_t* pb, size_t cb, unsigned int timeout) {
-		cout << "Now listening for packages ... ";
-		cout.flush();
-		size_t result = receive(pb, cb, timeout);
-		cout << result << " octets" << endl;
-		return result;
+		return receive(NULL, timeout);
 	}
 
 	// Set the frequency of the carrier wave
@@ -710,7 +728,10 @@ namespace RFM22B_NS {
 			// mask out all not enabled bits:
 			intrstat &= intrmask;
 			if (intrstat != intrhold) {
+				rising_edges |= (intrstat^intrhold)&intrstat&intrmask;
 				intrhold = intrstat;
+			}
+			if (rising_edges) {
 				intoccurred.unlock();
 				continue;
 			}
@@ -810,13 +831,15 @@ namespace RFM22B_NS {
 	void RFM22B::enableTXMode() {
 		setOperatingMode((RFM22B_Operating_Mode)
 			((uint)getOperatingMode() |
-			 (uint)RFM22B_Operating_Mode::TX_MODE));
+			 (uint)RFM22B_Operating_Mode::TX_MODE |
+			 (uint)RFM22B_Operating_Mode::AUTOMATIC_TRANSMISSION));
 	}
 
 	void RFM22B::disableTXMode() {
 		setOperatingMode((RFM22B_Operating_Mode)
 			((uint)getOperatingMode() &
-			 ~(uint)RFM22B_Operating_Mode::TX_MODE));
+			~(uint)RFM22B_Operating_Mode::TX_MODE &
+			~(uint)RFM22B_Operating_Mode::AUTOMATIC_TRANSMISSION));
 	}
 
 	// Reset the device
@@ -995,55 +1018,166 @@ namespace RFM22B_NS {
 		transfer_lock.unlock();
 	}
 
-	// Send data
-	void RFM22B::send(uint8_t *data, size_t length) {
-		// Clear TX FIFO
-		//this->clearTXFIFO();
+	bool RFM22B::refillTXFIFO(
+			uint8_t                        *pb_data, size_t cb_data,
+			function<int(uint8_t*,size_t)>  output,
+			int                            &package_length,
+			int                            &index_in_package,
+			int                            &space_left_in_fifo)
+	{
+		if (space_left_in_fifo == 0) {
+			if (verbose)
+				cerr << "Reinitiate transmission" << endl;
+			enableTXMode();
+			return true;
+		}
+		uint8_t txb[MAX_PACKET_LENGTH+1]; uint8_t rxb[MAX_PACKET_LENGTH+1];
+		txb[0] = 0xff;
+		while (space_left_in_fifo > 0) {
+			int cb_to_send = package_length - index_in_package;
+			if (cb_to_send > space_left_in_fifo)
+				cb_to_send = space_left_in_fifo;
+			if (verbose)
+				cerr << "refill:"
+					 << "pl=" << package_length << ":"
+					 << "ip=" << index_in_package << ":"
+					 << "sl=" << space_left_in_fifo << ":"
+					 << "cs=" << cb_to_send
+					 << endl;
+			memcpy(&txb[1], &pb_data[index_in_package], cb_to_send);
+			if (verbose)
+				cout << "transfer: " << cb_to_send << endl;
+			transfer(txb, rxb, cb_to_send);
+			index_in_package += cb_to_send;
+			space_left_in_fifo -= cb_to_send;
+			if (index_in_package == package_length) {
+				package_length = output(pb_data, cb_data);
+				if (verbose)
+					cerr << "output:"
+						 << "pl=" << package_length
+						 << endl;
+				if (package_length < 0)
+					return false;
+				index_in_package = 0;
+				if (verbose)
+					cout << "Set TX length: " << package_length << endl;
+				setTransmitPacketLength(package_length);
+			}
+		} // end while //
+		return true;
+	}
 
-		// Set FIFO register address (with write flag)
-		tx[0] = (uint8_t)RFM22B_Register::FIFO_ACCESS | (1<<7);
-		// Truncate data if its too long
-		if (length > MAX_PACKET_LENGTH)
-			length = MAX_PACKET_LENGTH;
-		// Copy data from input array to tx array
-		memcpy(&tx[1], data, length);
-		// Set the packet length
-		this->setTransmitPacketLength(length);
-		// Make the transfer
-		this->transfer(tx,rx,length);
-		// Enter TX mode
-		this->enableTXMode();
-		// Loop until packet has been sent (device has left TX mode)
-		while ((getRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_1) & 0x08))
+	// Send data
+	void RFM22B::send(function<int(uint8_t *pb, size_t cb)> output) {
+		if (!output)
+			return;
+		uint8_t data[256];
+		uint64_t overorunderflows = 0;
+
+		int refillmax = MAX_PACKET_LENGTH - getTXFIFOAlmostEmptyThreshold();
+
+		di();
+		//setInterruptEnable(RFM22B_Interrupt::FIFO_UNDERFLOW_OVERFLOW,  true);
+		setInterruptEnable(RFM22B_Interrupt::TX_FIFO_ALMOST_EMPTY_INT, true);
+		RFM22B_Modulation_Data_Source mds_save = getModulationDataSource();
+		setModulationDataSource(RFM22B_Modulation_Data_Source::FIFO);
+		ei();
+		int packagelen = output(data, sizeof(data));
+		int indexinpackage = 0;
+		int spaceleftinfifo = MAX_PACKET_LENGTH;
+		if (packagelen >= 0) {
+			clearTXFIFO();
+			if (verbose)
+				cout << "Set TX length: " << packagelen << endl;
+			setTransmitPacketLength(packagelen);
+			refillTXFIFO(data, sizeof(data), output, packagelen,
+					indexinpackage, spaceleftinfifo);
+			enableTXMode();
+		}
+		while (packagelen >= 0) {
+			bool simul = false;
+			int32_t status = try_waitforinterrupt();
+			if (status < 0) {
+				usleep(INTERRUPT_POLL_TIME);
+				// Test if the transmission is still in progress:
+				if ((uint16_t)getOperatingMode() &
+					(uint16_t)RFM22B_Operating_Mode::TX_MODE)
+					continue;
+				// Transmission stalled. Reinitiate:
+				if (verbose)
+					cout << "Transmission stalled" << endl;
+				status = (uint16_t) RFM22B_Interrupt::FIFO_UNDERFLOW_OVERFLOW;
+				simul = true;
+			}
+			if (!simul)
+				eoi();
+
+			/*** TX_FIFO_ALMOST_EMPTY_INT ***/
+			if (status & (uint16_t) RFM22B_Interrupt::TX_FIFO_ALMOST_EMPTY_INT) {
+				if (verbose)
+					cout << "<<<FIFO almost empty>>>" << endl;
+				spaceleftinfifo = refillmax;
+				refillTXFIFO(data, sizeof(data), output, packagelen,
+						indexinpackage, spaceleftinfifo);
+				enableTXMode();
+			}
+
+			/*** FIFO_UNDERFLOW_OVERFLOW ***/
+			if (status & (uint16_t) RFM22B_Interrupt::FIFO_UNDERFLOW_OVERFLOW) {
+				if (verbose)
+					cout << "<<<Over-/Underflow>>>" << endl;
+				++overorunderflows;
+				packagelen = output(data, sizeof(data));
+				if (packagelen >= 0) {
+					clearTXFIFO();
+					spaceleftinfifo = MAX_PACKET_LENGTH;
+					indexinpackage = 0;
+					if (verbose)
+						cout << "Set TX length: " << packagelen << endl;
+					setTransmitPacketLength(packagelen);
+					refillTXFIFO(data, sizeof(data), output, packagelen,
+							indexinpackage, spaceleftinfifo);
+					enableTXMode();
+				}
+			}
+		} // end while //
+
+		setInterruptEnable(RFM22B_Interrupt::FIFO_UNDERFLOW_OVERFLOW,  false);
+		setInterruptEnable(RFM22B_Interrupt::TX_FIFO_ALMOST_EMPTY_INT, false);
+		// Wait for completion of transmission:
+		while ((uint16_t)getOperatingMode() &
+			   (uint16_t)RFM22B_Operating_Mode::TX_MODE)
 			usleep(1);
+		setModulationDataSource(mds_save);
+		cout << "done" << endl;
+		cout << overorunderflows << " underruns" << endl;
 	};
 	
 	// Receive data (blocking with timeout). Returns number of bytes received
-	size_t RFM22B::receive(uint8_t *_data, size_t length, int timeout) {
+	size_t RFM22B::receive(
+			function<void(uint8_t*,size_t)> input, unsigned int timeout)
+	{
 		clearRXFIFO();
 		di();
 		setInterruptEnable(RFM22B_Interrupt::RSSI,                    true);
 		setInterruptEnable(RFM22B_Interrupt::SYNC_WORD,               true);
-		setInterruptEnable(RFM22B_Interrupt::CRC_ERROR,               true);
-		setInterruptEnable(RFM22B_Interrupt::FIFO_UNDERFLOW_OVERFLOW, true);
+		//setInterruptEnable(RFM22B_Interrupt::CRC_ERROR,               true);
+		//setInterruptEnable(RFM22B_Interrupt::FIFO_UNDERFLOW_OVERFLOW, true);
 		setInterruptEnable(RFM22B_Interrupt::VALID_PACKET_RECEIVED,   true);
 		setInterruptEnable(RFM22B_Interrupt::RX_FIFO_ALMOST_FULL_INT, true);
 		Timer timer;
-		//setRXFIFOAlmostFullThreshold(40); // Very pessimistic!
 		int rxbffaful = getRXFIFOAlmostFullThreshold();
-		bool f, squelch = false, preamble = false, sync = false,
-				crcerror = false, valid = false, fuow = false;
 		uint32_t crcerrors = 0, overorunderflows = 0, valids = 0;
 		uint64_t octets = 0;
 		uint8_t data[256];
-		uint8_t txb[65]; uint8_t rxb[65];
+		uint8_t txb[MAX_PACKET_LENGTH+1]; uint8_t rxb[MAX_PACKET_LENGTH+1];
 		txb[0] = 0x7f; memset(&txb[1], 0x00, sizeof(txb)-1);
 		int alreadyreceived = 0, packagelength = 0;
 		uint8_t *rxptr = data;
 		bool bad = false; // Error flag
 
-		if (verbose)
-			cerr << "** Start receive **" << endl;
+		cout << "Now listening for " << timeout << "s ... ";
+		cout.flush();
 		enableRXMode();
 		ei();
 		while (timer.elapsed() < timeout) {
@@ -1054,38 +1188,43 @@ namespace RFM22B_NS {
 			}
 
 			/*** RSSI ***/
-			f = (status & (uint16_t) RFM22B_Interrupt::RSSI);
-			if (f != squelch) {
-				if (f) {
-					alreadyreceived = 0;
-					packagelength = 0;
-					rxptr = data;
-					bad = false;
-					if (verbose)
-						cout << "<<<Squelch open>>>" << endl;
-				} else {
-					if (verbose)
-						cout << "<<<Squelch closed>>>" << endl;
-				}
+			if (status & (uint16_t) RFM22B_Interrupt::RSSI) {
+				alreadyreceived = 0;
+				packagelength = 0;
+				rxptr = data;
+				bad = false;
+				if (verbose)
+					cout << "<<<Squelch open>>>" << endl;
 			}
-			squelch = f;
 
 			/*** SYNC_WORD ***/
-			f = (status & (uint16_t) RFM22B_Interrupt::SYNC_WORD);
-			if (f && !sync) {
+			if (status & (uint16_t) RFM22B_Interrupt::SYNC_WORD) {
 				packagelength = 0;
 				alreadyreceived = 0;
 				uint8_t *rxptr = data;
 				bad = false;
-				valid = false;
 				if (verbose)
 					cout << "<<<Sync>>>" << endl;
 			}
-			sync = f;
+
+			/*** FIFO_UNDERFLOW_OVERFLOW ***/
+			if (status & (uint16_t) RFM22B_Interrupt::FIFO_UNDERFLOW_OVERFLOW) {
+				++overorunderflows;
+				clearRXFIFO();
+				bad = true;
+				if (verbose)
+					cout << "<<<Over-/Underflow>>>" << endl;
+			}
+
+			/*** CRC_ERROR ***/
+			if (status & (uint16_t) RFM22B_Interrupt::CRC_ERROR) {
+				if (verbose)
+					cout << "<<<CRC error>>>" << endl;
+				++crcerrors;
+			}
 
 			/*** RX_FIFO_ALMOST_FULL_INT ***/
-			f = (status & (uint16_t) RFM22B_Interrupt::RX_FIFO_ALMOST_FULL_INT);
-			if (f) {
+			if (status & (uint16_t) RFM22B_Interrupt::RX_FIFO_ALMOST_FULL_INT) {
 				if (!packagelength)
 					packagelength = getReceivedPacketLength();
 				int readlen = min(rxbffaful, packagelength - alreadyreceived);
@@ -1112,9 +1251,7 @@ namespace RFM22B_NS {
 			}
 
 			/*** VALID_PACKET_RECEIVED ***/
-			f = (status & (uint16_t) RFM22B_Interrupt::VALID_PACKET_RECEIVED);
-			if (f & !valid) {
-				valid = true;
+			if (status & (uint16_t) RFM22B_Interrupt::VALID_PACKET_RECEIVED) {
 				if (!packagelength)
 					packagelength = getReceivedPacketLength();
 				int readlen = packagelength - alreadyreceived;
@@ -1139,7 +1276,8 @@ namespace RFM22B_NS {
 						memcpy(rxptr, &rxb[1], readlen);
 						alreadyreceived += readlen;
 						++valids;
-						///TODO: Do something with the data
+						if (input)
+							input(data, alreadyreceived);
 						octets += alreadyreceived;
 						alreadyreceived = 0;
 						rxptr = data;
@@ -1157,26 +1295,7 @@ namespace RFM22B_NS {
 				}
 			}
 
-			/*** FIFO_UNDERFLOW_OVERFLOW ***/
-			f = (status & (uint16_t) RFM22B_Interrupt::FIFO_UNDERFLOW_OVERFLOW);
-			if (f & !fuow) {
-				++overorunderflows;
-				clearRXFIFO();
-				bad = true;
-				if (verbose)
-					cout << "<<<Over-/Underflow>>>" << endl;
-			}
-			fuow = f;
-
-			f = (status & (uint16_t) RFM22B_Interrupt::CRC_ERROR);
-			if (f && !crcerror) {
-				if (verbose)
-					cout << "<<<CRC error>>>" << endl;
-				++crcerrors;
-			}
-			crcerror = f;
-
-			ei();
+			eoi();
 		} // end while //
 		disableRXMode();
 		setInterruptEnable(RFM22B_Interrupt::RSSI,                    false);
@@ -1185,13 +1304,12 @@ namespace RFM22B_NS {
 		setInterruptEnable(RFM22B_Interrupt::FIFO_UNDERFLOW_OVERFLOW, false);
 		setInterruptEnable(RFM22B_Interrupt::VALID_PACKET_RECEIVED,   false);
 		setInterruptEnable(RFM22B_Interrupt::RX_FIFO_ALMOST_FULL_INT, false);
-		ei();
-		cerr << endl
-			 << "  RX: "
+		cerr << octets << " octets"
+			 << endl
+			 << "  "
 			 << valids           << " pkgs, "
-			 << octets           << " octets, "
 			 << crcerrors        << " CRC err, "
-			 << overorunderflows << " o/u flows **"
+			 << overorunderflows << " misses"
 			 << endl;
 		return 0;
 	};

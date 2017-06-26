@@ -22,6 +22,7 @@
 #include <vector>
 #include <mutex>
 #include <thread>
+#include <functional>
 
 #include "defaults.h"
 
@@ -208,10 +209,12 @@ namespace RFM22B_NS {
 		bool getVerbose() { return verbose; }
 
 		// Send data
-		void send(uint8_t *data, size_t length);
+		void send(std::function<int(uint8_t *pb, size_t cb)> output);
 
 		// Receive data (blocking with timeout). Returns number of bytes received
-		size_t receive(uint8_t *data, size_t length, int timeout=30000);
+		size_t receive(
+			std::function<void(uint8_t*,size_t)> input,
+			unsigned int                         timeout = DEFAULT_RX_TIMEOUT);
 
 		// Transfer
 		void transfer(uint8_t *tx, uint8_t *rx, size_t size);
@@ -228,12 +231,16 @@ namespace RFM22B_NS {
 		void intrtask(); // Int simulation task
 		uint16_t waitforinterrupt() {
 			intoccurred.lock();
-			return intrhold;
+			return rising_edges;
 		}
 		int32_t try_waitforinterrupt() {
 			if (intoccurred.try_lock())
-				return intrhold;
+				return rising_edges;
 			return -1;
+		}
+		void eoi() {
+			rising_edges = 0x0000;
+			ei();
 		}
 #endif
 
@@ -241,6 +248,12 @@ namespace RFM22B_NS {
 	private:
 		void setFIFOThreshold(RFM22B_Register reg, uint8_t thresh);
 		void init(struct register_value rg_rv[]);
+		bool refillTXFIFO(
+				uint8_t                             *pb_data, size_t cb_data,
+				std::function<int(uint8_t*,size_t)>  output,
+				int                                 &package_length,
+				int                                 &index_in_package,
+				int                                 &space_left_in_fifo);
 
 		std::mutex           transfer_lock;
 		std::vector<uint8_t> addr {};
@@ -252,13 +265,14 @@ namespace RFM22B_NS {
 #ifdef SIMULATE_INTERRUPTS
 		// Support for simulated interrupts:
 		std::thread          intrthread;
-		volatile bool        intrstop = false;  // Terminate int
-		std::mutex           intlocked;         // Avoid interrupts
-		std::mutex           intoccurred;       // Wait for interrupt
-		volatile uint16_t    intrmask = 0x0000; // Enable mask
-		volatile uint16_t    intrhold = 0x0000; // Old int status
-		void di() { intlocked.lock();   }       // Disable interrupts
-		void ei() { intlocked.unlock(); }       // Enable interrupts
+		volatile bool        intrstop     = false;  // Terminate int
+		std::mutex           intlocked;             // Avoid interrupts
+		std::mutex           intoccurred;           // Wait for interrupt
+		volatile uint16_t    intrmask     = 0x0000; // Enable mask
+		volatile uint16_t    intrhold     = 0x0000; // Old int status
+		volatile uint16_t    rising_edges = 0x0000; // Contains rising edges
+		void di() { intlocked.lock();   }           // Disable interrupts
+		void ei() { intlocked.unlock(); }           // Enable interrupts
 #endif
 	};
 
