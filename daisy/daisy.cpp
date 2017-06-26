@@ -20,6 +20,8 @@
 #include <cstdlib>
 #include <map>
 
+#include <signal.h>
+
 #include "rfm22b.h"
 #include "daisy_exception.h"
 #include "defaults.h"
@@ -367,15 +369,11 @@ static const command_map_type command_map = {
 		"", "Receive for 30s",
 		[](RFM22B& chip, const string& arg)
 		{ noarg(arg);
-		  uint8_t buf[64];
-		  size_t size = chip.rx_packages(buf, sizeof(buf), DEFAULT_RX_TIMEOUT);
-		  cout << print(buf, size) << endl; }}},
+		  chip.rx_packages(DEFAULT_RX_TIMEOUT); }}},
 	{ "receive=", command {
 		"<number>", "Receive for <number>s",
 		[](RFM22B& chip, const string& arg)
-		{ uint8_t buf[64];
-		  size_t size = chip.rx_packages(buf, sizeof(buf), decode_uint32(arg));
-		  cout << print(buf, size) << endl; }}},
+		{ chip.rx_packages(decode_uint32(arg)); }}},
 	{ "narrow", command {
 		"", "Set narrow mode",
 		[](RFM22B& chip, const string& arg)
@@ -483,7 +481,53 @@ static void shell(RFM22B& chip) {
 	cout << "Daisy Shell exit" << endl;
 }
 
+static void handle_signal(int signal) {
+    const char *signal_name;
+    sigset_t pending;
+
+    switch (signal) {
+        case SIGHUP:
+            printf("Caught SIGHUP, exiting now\n");
+            exit(0);
+            break;
+        case SIGUSR1:
+            printf("\nCaught SIGUSR1, exiting now\n");
+            exit(0);
+            break;
+        case SIGINT:
+            printf("\nCaught SIGINT, exiting now\n");
+            exit(0);
+            break;
+        case SIGTERM:
+            printf("\nCaught SIGTERM, exiting now\n");
+            exit(0);
+            break;
+        case SIGSEGV:
+            printf("\nCaught SIGSEGV, exiting now\n");
+            exit(0);
+            break;
+        default:
+            fprintf(stderr, "\nCaught signal: %d\n", signal);
+            return;
+    } // end switch //
+}
+
 int main(int argc, char* argv[]) {
+	struct sigaction sa;
+
+	sa.sa_handler = &handle_signal;
+	sa.sa_flags = SA_RESTART;
+	sigfillset(&sa.sa_mask);
+	if (sigaction(SIGHUP, &sa, NULL) == -1)
+		perror("Error: cannot handle SIGHUP");
+    if (sigaction(SIGUSR1, &sa, NULL) == -1)
+        perror("Error: cannot handle SIGUSR1");
+    if (sigaction(SIGINT, &sa, NULL) == -1)
+        perror("Error: cannot handle SIGINT");
+    if (sigaction(SIGTERM, &sa, NULL) == -1)
+        perror("Error: cannot handle SIGTERM");
+    if (sigaction(SIGSEGV, &sa, NULL) == -1)
+        perror("Error: cannot handle SIGSEGV");
 
 	try {
 		if (argc == 1) {
@@ -524,3 +568,4 @@ int main(int argc, char* argv[]) {
 	}
 	return EXIT_FAILURE;
 }
+

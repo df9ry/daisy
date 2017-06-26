@@ -24,6 +24,6 @@
 #define DEFAULT_NUM_PACKAGE  100
 
 #define SIMULATE_INTERRUPTS true
-#define INTERRUPT_POLL_TIME 1000 // In us
+#define INTERRUPT_POLL_TIME    5 // In us
 
 #endif

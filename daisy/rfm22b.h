@@ -81,7 +81,7 @@ namespace RFM22B_NS {
 		void tx_packages(unsigned int numpkts);
 
 		// Receive packages:
-		size_t rx_packages(uint8_t* pb, size_t cb, unsigned int timeout);
+		void rx_packages(unsigned int timeout);
 
 		// Set or get the carrier frequency (in Hz);
 		void setCarrierFrequency(unsigned int frequency);
@@ -212,7 +212,7 @@ namespace RFM22B_NS {
 		void send(std::function<int(uint8_t *pb, size_t cb)> output);
 
 		// Receive data (blocking with timeout). Returns number of bytes received
-		size_t receive(
+		void receive(
 			std::function<void(uint8_t*,size_t)> input,
 			unsigned int                         timeout = DEFAULT_RX_TIMEOUT);
 
