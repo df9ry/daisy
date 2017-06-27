@@ -35,8 +35,6 @@ struct daisy_packet {
  * Top level data structure in this driver.
  */
 struct root_descriptor {
-	struct file       *spi_file;
-	const char        *spi_dev_name;
 	struct net_device *daisy_dev;
 };
 

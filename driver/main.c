@@ -31,16 +31,6 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("Driver for the Daisy interface");
 MODULE_VERSION("0.1.1");
 
-#define DEFAULT_SPI_DEVICE "/dev/spidev0.0"
-
-/*
- * Module parameter "spi_dev". The default can be overwritten
- * at module loading. If there are more then one device these
- * can be separated by commata. No spaces are allowed!
- */
-static char *spi_dev = DEFAULT_SPI_DEVICE;
-module_param(spi_dev, charp, 0);
-
 /*
  * Forwards.
  */
@@ -50,8 +40,6 @@ struct net_device_stats *daisy_stats(struct net_device *dev);
 int daisy_change_mtu(struct net_device *dev, int new_mtu);
 int daisy_tx(struct sk_buff *skb, struct net_device *dev);
 void daisy_tx_timeout (struct net_device *dev);
-struct file *file_open(const char *path, int flags, int rights);
-void file_close(struct file *file);
 
 static int daisy_open(struct net_device *dev);
 static int daisy_stop(struct net_device *dev);
@@ -65,7 +53,7 @@ static int pool_size = DEFAULT_POOL_SIZE;
 /*
  * Definition of root array.
  */
-static struct root_descriptor *root = NULL;
+static struct root_descriptor *root    = NULL;
 static size_t                  n_roots = 0;
 
 /*
@@ -87,19 +75,20 @@ static const struct net_device_ops daisy_netdev_ops = {
  */
 static void daisy_setup_pool(struct net_device *dev)
 {
-	struct daisy_priv *priv = netdev_priv(dev);
-	int i;
+	struct daisy_priv   *priv = netdev_priv(dev);
 	struct daisy_packet *pkt;
+	int i;
 
 	priv->ppool = NULL;
 	for (i = 0; i < pool_size; i++) {
 		pkt = kmalloc (sizeof (struct daisy_packet), GFP_KERNEL);
 		if (pkt == NULL) {
-			printk (KERN_NOTICE "daisy: Ran out of memory allocating packet pool\n");
+			printk(KERN_NOTICE
+					"daisy: Ran out of memory allocating packet pool\n");
 			return;
 		}
-		pkt->dev = dev;
-		pkt->next = priv->ppool;
+		pkt->dev    = dev;
+		pkt->next   = priv->ppool;
 		priv->ppool = pkt;
 	}
 }
@@ -109,7 +98,7 @@ static void daisy_setup_pool(struct net_device *dev)
  */
 static void daisy_teardown_pool(struct net_device *dev)
 {
-	struct daisy_priv *priv = netdev_priv(dev);
+	struct daisy_priv   *priv = netdev_priv(dev);
 	struct daisy_packet *pkt;
 
 	while ((pkt = priv->ppool)) {
@@ -150,35 +139,7 @@ static int daisy_open(struct net_device *dev)
 
 	printk(KERN_DEBUG "daisy: Open net device \"%s\"\n", dev->name);
 
-	priv = netdev_priv(dev);
-	if (!priv) {
-		printk(KERN_ERR "daisy: Unable to get private data for \"%s\"\n",
-				dev->name);
-		return -EFAULT;
-	}
-
-	rd = priv->root;
-	if (!rd) {
-		printk(KERN_ERR "daisy: Unable to get root descriptor for \"%s\"\n",
-				dev->name);
-		return -EFAULT;
-	}
-
-	if (rd->spi_file) {
-		printk(KERN_ERR "daisy: File is already open: \"%s\"\n",
-				rd->spi_dev_name);
-		return -EFAULT;
-	}
-
-	if (!(rd->spi_file = file_open(rd->spi_dev_name, O_RDWR, O_DIRECT))) {
-		printk(KERN_ERR "daisy: Unable to open SPI file: \"%s\"\n",
-				rd->spi_dev_name);
-		return -ENODEV;
-	}
-	printk(KERN_DEBUG "daisy: SPI file opened: \"%s\"\n", rd->spi_dev_name);
-
 	netif_start_queue(dev);
-	printk(KERN_DEBUG "daisy: Net device \"%s\" opened\n", dev->name);
 	return 0;
 }
 
@@ -190,13 +151,6 @@ static int daisy_stop(struct net_device *dev)
 	if (dev) {
 		printk(KERN_DEBUG "daisy: Stop net device \"%s\"\n", dev->name);
 		netif_stop_queue(dev);
-		if ((priv = netdev_priv(dev)) && (rd = priv->root) && rd->spi_file) {
-			printk(KERN_DEBUG "daisy: Close file \"%s\"\n",
-					rd->spi_dev_name);
-			file_close(rd->spi_file);
-			rd->spi_file = NULL;
-		}
-		printk(KERN_DEBUG "daisy: Device \"%s\" stopped\n", dev->name);
 	}
 	return 0;
 }
@@ -235,27 +189,18 @@ static int daisy_init_module(void)
 {
 	int ret = -ENOMEM;
 	int result, i;
-	char *pc;
 	struct root_descriptor *pd;
-	struct daisy_priv *priv;
+	struct daisy_priv      *priv;
 
 	printk(KERN_DEBUG "daisy: Initializing\n");
-	/* Scan the spi_dev parameter for interfaces. */
-	if ((!spi_dev) || (!strlen(spi_dev))) {
-		printk(KERN_ERR "daisy: Parameter spi_dev is empty!\n");
-		ret = -ENOENT;
-		goto out;
-	}
 	if (n_roots) {
 		printk(KERN_ERR "daisy: Multiple init_module calls!\n");
 		ret = -ENOENT;
 		goto out;
 	}
-	pc = spi_dev;
-	while (pc && *pc) {
-		++n_roots;
-		pc = strchr(++pc, ',');
-	} // end while //
+
+	n_roots = 1; // For now, we have only one SPI device.
+
 	/* Allocate memory for the root array. */
 	if (!(root = kcalloc(sizeof(struct root_descriptor), n_roots, GFP_KERNEL)))
 	{
@@ -264,13 +209,7 @@ static int daisy_init_module(void)
 		ret = -ENOMEM;
 		goto out;
 	}
-	for (i = 0, pc = spi_dev, pd = root; i < n_roots; ++i, ++pc, ++pd) {
-		pd->spi_dev_name = pc;
-		pc = strchr(pc, ',');
-		if (pc)
-			*pc = '\0';
-	} // end for //
-	/* Open files and network devices */
+	/* Open network devices */
 	for (i = 0, pd = root; i < n_roots; ++i, ++pd) {
 		if (!(pd->daisy_dev = alloc_netdev(
 				sizeof(struct daisy_priv), "dsy%d",
@@ -280,8 +219,6 @@ static int daisy_init_module(void)
 			ret = -ENODEV;
 			goto out;
 		}
-		printk(KERN_DEBUG "daisy: Allocated net device for \"%s\"\n",
-				pd->spi_dev_name);
 
 		if ((result = register_netdev(pd->daisy_dev))) {
 			printk(KERN_ERR

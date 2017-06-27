@@ -19,7 +19,7 @@
 	driver hello hellodrv snull tests \
 	clean kernel daisy kernel_clean
 
-all: daisy
+all: driver
 
 daisy:
 	$(MAKE) -C daisy all
