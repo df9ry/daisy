@@ -16,8 +16,8 @@
  *    along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef DAISY_H_
-#define DAISY_H_
+#ifndef _DAISY_H_
+#define _DAISY_H_
 
 #include <linux/netdevice.h>
 
@@ -53,13 +53,15 @@ struct daisy_priv {
 };
 
 /*
- *  Default timeout period.
+ * Useful defaults:
  */
-#define DEFAULT_TIMEOUT 5   /* In jiffies */
+#define DEFAULT_TIMEOUT    5   /* In jiffies              */
+#define SPI_CLOCK_DIVIDER 64   /* SPI communication speed */
+#define RFM22B_TYPE_ID     8   /* SPI chip id             */
 
 /*
  * Default pool size.
  */
 #define DEFAULT_POOL_SIZE 8
 
-#endif /* DAISY_H_ */
+#endif /* _DAISY_H_ */
