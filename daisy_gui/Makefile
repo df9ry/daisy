@@ -15,42 +15,32 @@
 #     You should have received a copy of the GNU General Public License
 #     along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
 
-.PHONY: all \
-	driver hello hellodrv snull daisy_gui tests \
-	clean kernel daisy kernel_clean
+include ../environment.mk
 
-all: daisy_gui
-
-daisy:
-	$(MAKE) -C daisy all
+# All Target
+all: makedir build/web/index.html
 	
-driver:
-	$(MAKE) -C driver all
+makedir:
+ifeq ($(wildcard build),)
+	-@$(MKDIR) build
+endif
 
-hello:
-	$(MAKE) -C test/test0001 all
+# Tool invocations
 
-hellodrv:
-	$(MAKE) -C test/test0002 all
+build/web/index.html: web/* lib/*
+	
+	@echo 'Building DAISY GUI'
+	pub get
+	pub build
+#	pub publish --dry-run
+	@echo 'Finished building DAISY GUI'
+	-@echo ' '
 
-snull:
-	$(MAKE) -C test/test0003 all
-
-daisy_gui:
-	$(MAKE) -C daisy_gui all
-
-tests:
-	$(MAKE) -C test all
-
+# Other Targets
 clean:
-	$(MAKE) -C driver    clean
-	$(MAKE) -C daisy     clean
-	$(MAKE) -C daisy_gui clean
-	$(MAKE) -C test      clean
+ifneq ($(wildcard build),)
+	$(RMDIR) build
+endif
+	-@echo ' '
 
-kernel:
-	$(MAKE) -C kernel all
-	
-kernel_clean:
-	$(MAKE) -C kernel clean
-
+.PHONY: all clean makedir

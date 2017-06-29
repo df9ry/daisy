@@ -1,0 +1,47 @@
+# Copyright 2017 Tania Hagn
+
+# This file is part of Daisy.
+# 
+#     Daisy is free software: you can redistribute it and/or modify
+#     it under the terms of the GNU General Public License as published by
+#     the Free Software Foundation, either version 3 of the License, or
+#     (at your option) any later version.
+# 
+#     Daisy is distributed in the hope that it will be useful,
+#     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#     GNU General Public License for more details.
+# 
+#     You should have received a copy of the GNU General Public License
+#     along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
+
+name:        daisy_gui
+author:      Tania Hagn (DF9RY) <Tania@DF9RY.de>
+homepage:    https://df9ry.de/daisy
+description: GUI for the daisy project
+version: 0.0.1
+
+environment:
+  sdk: '>=1.24.0 <2.0.0'
+
+dependencies:
+  angular2: ^3.1.0
+
+dev_dependencies:
+  angular_test: ^1.0.0-beta+2
+  browser: ^0.10.0
+  dart_to_js_script_rewriter: ^1.0.1
+  test: ^0.12.21
+
+transformers:
+- angular2:
+    entry_points: web/main.dart
+- angular2/transform/reflection_remover:
+    $include: test/**_test.dart
+- test/pub_serve:
+    $include: test/**_test.dart
+- dart_to_js_script_rewriter
+
+web:
+  compiler:
+    debug: dartdevc

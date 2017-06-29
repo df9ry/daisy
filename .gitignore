@@ -31,6 +31,14 @@
 # Debug files
 *.dSYM/
 *.su
-Debug
-Release
+Debug/
+Release/
 
+# Files and directories created by pub
+.packages
+.pub/
+build/
+pubspec.lock
+
+# Directory created by dartdoc
+doc/api/

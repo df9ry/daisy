@@ -144,7 +144,7 @@ int bcm2835_spi_begin(void) {
 
 void bcm2835_spi_end(void) {
     if (bcm2835_spi0 == MAP_FAILED)
-      return 0; /* bcm2835_init() failed, or not root */
+      return; /* bcm2835_init() failed, or not root */
 
     /* Set all the SPI0 pins back to input */
     bcm2835_gpio_fsel(RPI_GPIO_P1_26, BCM2835_GPIO_FSEL_INPT); /* CE1  */
