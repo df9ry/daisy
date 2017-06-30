@@ -31,7 +31,7 @@ build/web/index.html: web/* lib/*
 	
 	@echo 'Building DAISY GUI'
 	pub get
-	pub build
+	pub build --mode=debug
 #	pub publish --dry-run
 	@echo 'Finished building DAISY GUI'
 	-@echo ' '
