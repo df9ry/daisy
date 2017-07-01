@@ -18,8 +18,13 @@
 CONFIGURATION  ?= Debug
 TOOLSET_PREFIX ?= arm-linux-gnueabihf-
 
-GCC            := $(TOOLSET_PREFIX)gcc
-GXX            := $(TOOLSET_PREFIX)g++
+ifeq ($(CONFIGURATION),Debug)
+	GCC := $(TOOLSET_PREFIX)gcc -Og
+	GXX := $(TOOLSET_PREFIX)g++ -Og
+else
+	GCC := $(TOOLSET_PREFIX)gcc -O3
+	GXX := $(TOOLSET_PREFIX)g++ -O3
+endif
 
 ifdef ComSpec
     RM    := del /f /q

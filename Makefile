@@ -16,10 +16,10 @@
 #     along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
 
 .PHONY: all \
-	driver hello hellodrv snull daisy_gui tests \
+	driver hello hellodrv snull daisy_gui c2e tests \
 	clean kernel daisy kernel_clean
 
-all: daisy_gui
+all: c2e
 
 daisy:
 	$(MAKE) -C daisy all
@@ -38,6 +38,9 @@ snull:
 
 daisy_gui:
 	$(MAKE) -C daisy_gui all
+	
+c2e:
+	$(MAKE) -C c2e all
 
 tests:
 	$(MAKE) -C test all
@@ -46,6 +49,7 @@ clean:
 	$(MAKE) -C driver    clean
 	$(MAKE) -C daisy     clean
 	$(MAKE) -C daisy_gui clean
+	$(MAKE) -C c2e       clean
 	$(MAKE) -C test      clean
 
 kernel:
