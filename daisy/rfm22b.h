@@ -230,12 +230,20 @@ namespace RFM22B_NS {
 #ifdef SIMULATE_INTERRUPTS
 		void intrtask(); // Int simulation task
 		uint16_t waitforinterrupt() {
-			intoccurred.lock();
+			if (!intrpending)
+				intoccurred.lock();
+			intrpending = false;
 			return rising_edges;
 		}
 		int32_t try_waitforinterrupt() {
-			if (intoccurred.try_lock())
+			if (intrpending) {
+				intrpending = false;
 				return rising_edges;
+			}
+			if (intoccurred.try_lock()) {
+				intrpending = false;
+				return rising_edges;
+			}
 			return -1;
 		}
 		void eoi() {
@@ -248,24 +256,17 @@ namespace RFM22B_NS {
 	private:
 		void setFIFOThreshold(RFM22B_Register reg, uint8_t thresh);
 		void init(struct register_value rg_rv[]);
-		bool refillTXFIFO(
-				uint8_t                             *pb_data, size_t cb_data,
-				std::function<int(uint8_t*,size_t)>  output,
-				int                                 &package_length,
-				int                                 &index_in_package,
-				int                                 &space_left_in_fifo);
 
 		std::mutex           transfer_lock;
 		std::vector<uint8_t> addr {};
 		bool                 debug = false;
 		bool                 verbose = false;
-		uint8_t              tx[MAX_PACKET_LENGTH+1];
-		uint8_t              rx[MAX_PACKET_LENGTH+1];
 
 #ifdef SIMULATE_INTERRUPTS
 		// Support for simulated interrupts:
 		std::thread          intrthread;
 		volatile bool        intrstop     = false;  // Terminate int
+		volatile bool        intrpending  = false;  // Interrupt pending
 		std::mutex           intlocked;             // Avoid interrupts
 		std::mutex           intoccurred;           // Wait for interrupt
 		volatile uint16_t    intrmask     = 0x0000; // Enable mask

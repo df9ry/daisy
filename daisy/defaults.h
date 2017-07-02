@@ -19,11 +19,13 @@
 #ifndef _DEFAULTS_H
 #define _DEFAULTS_H
 
-#define DEFAULT_TUNE_TIME     10 // In s
-#define DEFAULT_RX_TIMEOUT    30 // In s
-#define DEFAULT_NUM_PACKAGE  100
+#define DEFAULT_TUNE_TIME         10 // In s
+#define DEFAULT_RX_TIMEOUT        30 // In s
+#define DEFAULT_NUM_PACKAGE      100
 
 #define SIMULATE_INTERRUPTS true
-#define INTERRUPT_POLL_TIME    5 // In us
+#define INTERRUPT_POLL_TIME        5 // In us
+#define DETECT_ONLY_RISING_EDGES   1
+#define BUS_CLOCK_DIVIDER        128 // Controls bus speed
 
 #endif

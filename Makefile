@@ -19,7 +19,7 @@
 	driver hello hellodrv snull daisy_gui c2e tests \
 	clean kernel daisy kernel_clean
 
-all: c2e
+all: daisy
 
 daisy:
 	$(MAKE) -C daisy all

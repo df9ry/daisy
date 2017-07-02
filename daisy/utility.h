@@ -94,6 +94,9 @@ namespace DaisyUtils {
 
 	std::string          print_help      (const std::string&        cmd);
 	std::string          print_status    (uint8_t                     v);
+
+	void dump(std::ostream& oss, const uint8_t *pb, uint32_t cb);
+
 } // end namespace //
 
 #endif /* UTILITY_H_ */

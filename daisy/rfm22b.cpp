@@ -103,22 +103,22 @@ namespace RFM22B_NS {
 
 	// Settings for GFSK 10kbps, 50kHz deviation on 434.150 MHz:
 	static struct register_value init_narrow[] = {
-		 { 0x1c|0x80, 0x05 }, // IF Filter Bandwidth
+		 { 0x1c|0x80, 0x2B }, // IF Filter Bandwidth
 		 { 0x1d|0x80, 0x40 }, // AFC Loop Gearshift Overide
-		 { 0x20|0x80, 0x90 }, // Clock Recovery Oversampling Rate
+		 { 0x20|0x80, 0xF4 }, // Clock Recovery Oversampling Rate
 		 { 0x21|0x80, 0x20 }, // Clock Recovery Offset 2
-		 { 0x22|0x80, 0x51 }, // Clock Recovery Offset 1
-		 { 0x23|0x80, 0xEC }, // Clock Recovery Offset 0
+		 { 0x22|0x80, 0x20 }, // Clock Recovery Offset 1
+		 { 0x23|0x80, 0xC5 }, // Clock Recovery Offset 0
 		 { 0x24|0x80, 0x00 }, // Clock Recovery Timing Loop Gain 1
-		 { 0x25|0x80, 0x23 }, // Clock Recovery Timing Loop Gain 0
-		 { 0x2a|0x80, 0x24 }, // AFC Limiter
-		 { 0x30|0x80, 0xaf }, // Data Access Control
-		 { 0x32|0x80, 0x8c }, // Header Control 1
+		 { 0x25|0x80, 0x26 }, // Clock Recovery Timing Loop Gain 0
+		 { 0x2a|0x80, 0x1D }, // AFC Limiter
+		 { 0x30|0x80, 0x8F }, // Data Access Control
+		 { 0x32|0x80, 0x8C }, // Header Control 1
 		 { 0x33|0x80, 0x02 }, // Header Control 2
-		 { 0x34|0x80, 0x0a }, // Preamble Length
-		 { 0x35|0x80, 0x2a }, // Preamble Detection Control 1
-		 { 0x36|0x80, 0x2d }, // Synchronization Word 3
-		 { 0x37|0x80, 0xd4 }, // Synchronization Word 2
+		 { 0x34|0x80, 0x08 }, // Preamble Length
+		 { 0x35|0x80, 0x2A }, // Preamble Detection Control 1
+		 { 0x36|0x80, 0x2D }, // Synchronization Word 3
+		 { 0x37|0x80, 0xD4 }, // Synchronization Word 2
 		 { 0x38|0x80, 0x00 }, // Synchronization Word 1
 		 { 0x39|0x80, 0x00 }, // Synchronization Word 0
 		 { 0x3a|0x80, 0x00 }, // Transmit Header 3
@@ -130,18 +130,18 @@ namespace RFM22B_NS {
 		 { 0x40|0x80, 0x00 }, // Check Header 2
 		 { 0x41|0x80, 0x00 }, // Check Header 1
 		 { 0x42|0x80, 0x00 }, // Check header 0
-		 { 0x43|0x80, 0xff }, // Header Enable 3
-		 { 0x44|0x80, 0xff }, // Header Enable 2
-		 { 0x45|0x80, 0xff }, // Header Enable 1
-		 { 0x46|0x80, 0xff }, // Header Enable 0
-		 { 0x6e|0x80, 0x51 }, // TX Data Rate 1
-		 { 0x6f|0x80, 0xec }, // TX Data Rate 0
-		 { 0x70|0x80, 0x2d }, // Modulation Mode Control 1
+		 { 0x43|0x80, 0xFF }, // Header Enable 3
+		 { 0x44|0x80, 0xFF }, // Header Enable 2
+		 { 0x45|0x80, 0xFF }, // Header Enable 1
+		 { 0x46|0x80, 0xFF }, // Header Enable 0
+		 { 0x6e|0x80, 0x08 }, // TX Data Rate 1
+		 { 0x6f|0x80, 0x31 }, // TX Data Rate 0
+		 { 0x70|0x80, 0x2E }, // Modulation Mode Control 1
 		 { 0x71|0x80, 0x23 }, // Modulation Mode Control 2
-		 { 0x72|0x80, 0x50 }, // Frequency Deviation
+		 { 0x72|0x80, 0x08 }, // Frequency Deviation
 		 { 0x75|0x80, 0x53 }, // Frequency Band Select
 		 { 0x76|0x80, 0x67 }, // Nominal Carrier Frequency
-		 { 0x77|0x80, 0xc0 }, // Nominal Carrier Frequency
+		 { 0x77|0x80, 0xC0 }, // Nominal Carrier Frequency
 		 { 0x00,      0x00 }  // Termination NULL Entry
 	};
 
@@ -243,10 +243,11 @@ namespace RFM22B_NS {
 		if (!bcm2835_spi_begin())
 			throw daisy_exception("Error initializing SPI system");
 		init_state = 2;
-		bcm2835_spi_setClockDivider(64);
+		bcm2835_spi_setClockDivider(BUS_CLOCK_DIVIDER);
 		unsigned int device = getRegister(RFM22B_Register::DEVICE_TYPE);
 		if (device != 8)
 			throw daisy_exception("Invalid device", to_string(device));
+		setNarrowMode();
 	}
 	
 	// Destructor:
@@ -307,15 +308,41 @@ namespace RFM22B_NS {
 	}
 	
 	void RFM22B::tx_packages(unsigned int numpkts) {
-		cout << "Now sending " << numpkts << " packages ... ";
-		cout.flush();
-		RandomPackageGenerator rpg(numpkts);
-		send([&rpg](uint8_t *pb, size_t cb) -> int{ return rpg.get(pb, cb); });
-		rpg.printStatistics();
+		try {
+			cout << "Now sending " << numpkts << " packages ... ";
+			if (verbose)
+				cout << endl;
+			else
+				cout.flush();
+			RandomPackageGenerator rpg(numpkts);
+			send([&rpg](uint8_t *pb, size_t cb) -> int{ return rpg.get(pb, cb); });
+			rpg.printStatistics();
+		}
+		catch (exception& ex) {
+			cerr << "Exception caught: " << ex.what() << endl;
+		}
+		catch (...) {
+			cerr << "Unknown exception caught!" << endl;
+		}
 	}
 
 	void RFM22B::rx_packages(unsigned int timeout) {
-		receive(NULL, timeout);
+		try {
+		/*
+		if (verbose)
+			receive([](const uint8_t *pb, size_t cb) {
+				DaisyUtils::dump(cout, pb, cb);
+			}, timeout);
+		else
+		*/
+			receive(NULL, timeout);
+		}
+		catch (exception& ex) {
+			cerr << "Exception caught: " << ex.what() << endl;
+		}
+		catch (...) {
+			cerr << "Unknown exception caught!" << endl;
+		}
 	}
 
 	// Set the frequency of the carrier wave
@@ -720,26 +747,47 @@ namespace RFM22B_NS {
 	
 #if SIMULATE_INTERRUPTS
 	void RFM22B::intrtask() {
-		while(!intrstop) {
-			di();
-			// Get interrupt status register
-			uint16_t intrstat =
-					get16BitRegister(RFM22B_Register::INTERRUPT_STATUS_1);
-			// mask out all not enabled bits:
-			intrstat &= intrmask;
-			if (intrstat != intrhold) {
-				rising_edges |= (intrstat^intrhold)&intrstat&intrmask;
-				intrhold = intrstat;
-			}
-			if (rising_edges) {
-				intoccurred.unlock();
-				continue;
-			}
-			if (intrstop)
-				break;
-			ei();
-			usleep(INTERRUPT_POLL_TIME);
-		} // end while //
+		try {
+			while(!intrstop) {
+				di();
+				// Get interrupt status register
+				uint16_t intrstat =
+						get16BitRegister(RFM22B_Register::INTERRUPT_STATUS_1);
+				// mask out all not enabled bits:
+				intrstat &= intrmask;
+#ifdef DETECT_ONLY_RISING_EDGES
+				if (intrstat != intrhold) {
+					rising_edges |= (intrstat^intrhold)&intrstat&intrmask;
+					intrhold = intrstat;
+				}
+				if (rising_edges) {
+					intrpending = true;
+					intoccurred.unlock();
+					continue;
+				}
+#else
+				if (intrstat != intrhold) {
+					rising_edges = intrhold = intrstat;
+					intrpending = true;
+					intoccurred.unlock();
+					continue;
+				}
+#endif
+				if (intrstop)
+					break;
+				ei();
+				usleep(INTERRUPT_POLL_TIME);
+			} // end while //
+		}
+		catch (exception& ex) {
+			cerr << "Exception caught in interrupt thread: " 
+				 << ex.what() << endl;
+		}
+		catch (...) {
+			cerr << "Unknown exception caught in interrupt thread!" 
+				 << endl;
+		}
+
 	}
 
 	static void task(RFM22B* me) {
@@ -855,7 +903,7 @@ namespace RFM22B_NS {
 				((uint)getOperatingMode() | (uint)RFM22B_Operating_Mode::RESET));
 		while ((uint)getOperatingMode() & (uint)RFM22B_Operating_Mode::RESET)
 			usleep(1);
-		usleep(200000);
+		usleep(20000);
 	}
 	
 	// Set or get the trasmit header
@@ -995,6 +1043,7 @@ namespace RFM22B_NS {
 				RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_2);
 		setRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_2,
 				x | 0x02);
+		usleep(10);
 		setRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_2,
 				x & ~0x02);
 	}
@@ -1005,6 +1054,7 @@ namespace RFM22B_NS {
 				RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_2);
 		setRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_2,
 				x | 0x01);
+		usleep(10);
 		setRegister(RFM22B_Register::OPERATING_MODE_AND_FUNCTION_CONTROL_2,
 				x & ~0x01);
 	}
@@ -1013,147 +1063,166 @@ namespace RFM22B_NS {
 	void RFM22B::transfer(uint8_t *tx, uint8_t *rx, size_t size) {
 		if ((!tx) || (!rx))
 			throw daisy_exception("NULL data");
-		if (size > MAX_PACKET_LENGTH)
+		if (size > MAX_PACKET_LENGTH+1)
 			throw daisy_exception(
-					"Package too long (max 64)", to_string(size));
+					"Package too long (max 65)", to_string(size));
 		transfer_lock.lock();
 		if (debug)
-			cerr << "**TX: " << DaisyUtils::print(tx, size);
+			cerr << "**TX: " << DaisyUtils::print(tx, size) << endl;
 		bcm2835_spi_transfernb((char*)tx, (char*)rx, size);
 		if (debug)
-			cerr << " - " << DaisyUtils::print(rx, size) << endl;
+			cerr << "**RX: " << DaisyUtils::print(rx, size) << endl;
 		transfer_lock.unlock();
-	}
-
-	bool RFM22B::refillTXFIFO(
-			uint8_t                        *pb_data, size_t cb_data,
-			function<int(uint8_t*,size_t)>  output,
-			int                            &package_length,
-			int                            &index_in_package,
-			int                            &space_left_in_fifo)
-	{
-		if (space_left_in_fifo == 0) {
-			if (debug)
-				cerr << "Reinitiate transmission" << endl;
-			enableTXMode();
-			return true;
-		}
-		uint8_t txb[MAX_PACKET_LENGTH+1]; uint8_t rxb[MAX_PACKET_LENGTH+1];
-		txb[0] = 0xff;
-		while (space_left_in_fifo > 0) {
-			int cb_to_send = package_length - index_in_package;
-			if (cb_to_send > space_left_in_fifo)
-				cb_to_send = space_left_in_fifo;
-			if (debug)
-				cerr << "refill:"
-					 << "pl=" << package_length << ":"
-					 << "ip=" << index_in_package << ":"
-					 << "sl=" << space_left_in_fifo << ":"
-					 << "cs=" << cb_to_send
-					 << endl;
-			memcpy(&txb[1], &pb_data[index_in_package], cb_to_send);
-			if (debug)
-				cout << "transfer: " << cb_to_send << endl;
-			transfer(txb, rxb, cb_to_send);
-			index_in_package += cb_to_send;
-			space_left_in_fifo -= cb_to_send;
-			if (index_in_package == package_length) {
-				package_length = output(pb_data, cb_data);
-				if (debug)
-					cerr << "output:"
-						 << "pl=" << package_length
-						 << endl;
-				if (package_length < 0)
-					return false;
-				index_in_package = 0;
-				if (debug)
-					cout << "Set TX length: " << package_length << endl;
-				setTransmitPacketLength(package_length);
-			}
-		} // end while //
-		return true;
 	}
 
 	// Send data
 	void RFM22B::send(function<int(uint8_t *pb, size_t cb)> output) {
 		if (!output)
 			return;
-		uint8_t data[256];
-		uint64_t overorunderflows = 0;
 
-		int refillmax = MAX_PACKET_LENGTH - getTXFIFOAlmostEmptyThreshold();
+		uint8_t   data[256];
+		uint8_t   tx[MAX_PACKET_LENGTH+1];
+		uint8_t   rx[MAX_PACKET_LENGTH+1];
+		int       packageleft;
+		int       indexinpackage;
+		int       tosend;
+		uint64_t  overflows = 0;
+		uint64_t  underflows = 0;
+		const int refillmax = MAX_PACKET_LENGTH - 
+				getTXFIFOAlmostEmptyThreshold();
+		Timer     timer;
 
 		setInterruptEnable(RFM22B_Interrupt::TX_FIFO_ALMOST_EMPTY_INT, true);
+		setInterruptEnable(RFM22B_Interrupt::FIFO_UNDERFLOW_OVERFLOW,  true);
+		setInterruptEnable(RFM22B_Interrupt::PACKET_SENT,              true);
+		
 		RFM22B_Modulation_Data_Source mds_save = getModulationDataSource();
 		setModulationDataSource(RFM22B_Modulation_Data_Source::FIFO);
-		int packagelen = output(data, sizeof(data));
-		int indexinpackage = 0;
-		int spaceleftinfifo = MAX_PACKET_LENGTH;
-		if (packagelen >= 0) {
-			clearTXFIFO();
-			if (debug)
-				cout << "Set TX length: " << packagelen << endl;
-			setTransmitPacketLength(packagelen);
-			refillTXFIFO(data, sizeof(data), output, packagelen,
-					indexinpackage, spaceleftinfifo);
-			enableTXMode();
+
+		// Clear the TX fifo to get a clean start:
+		clearTXFIFO();
+		
+		// Get first data block:
+		packageleft = output(data, sizeof(data));
+		if (packageleft < 0) // EOF
+			return;
+		if (verbose) {
+			cout << "<<<Output " << packageleft << " octets>>>" << endl;
+			DaisyUtils::dump(cout, data, packageleft);
 		}
-		while (packagelen >= 0) {
+		setTransmitPacketLength(packageleft);
+		enableTXMode();
+		indexinpackage = 0;
+		// Main loop:
+		timer.reset();
+		while (packageleft >= 0) {
 			int32_t status = try_waitforinterrupt();
 			if (status < 0) {
 				usleep(INTERRUPT_POLL_TIME);
-				// Test if the transmission is still in progress:
-				if ((uint16_t)getOperatingMode() &
-					(uint16_t)RFM22B_Operating_Mode::TX_MODE)
+				if (timer.elapsed() < 2.00)
 					continue;
-				// Transmission stalled. Reinitiate:
 				if (verbose)
 					cout << "<##Transmission stalled##>" << endl;
 				enableTXMode();
-				continue;
+			} else {
+				timer.reset();
 			}
 			eoi();
+			
+			/*** PACKET_SENT ***/
+			if (status & (uint16_t) RFM22B_Interrupt::PACKET_SENT) {
+				if (verbose)
+					cout << "<<<Packet sent>>>" << endl;
+				packageleft = output(data, sizeof(data));
+				if (packageleft >= 0) {
+					if (verbose) {
+						cout << "<<<Output " << packageleft << " octets>>>"
+							 << endl;
+						DaisyUtils::dump(cout, data, packageleft);
+					}
+					setTransmitPacketLength(packageleft);
+					enableTXMode();
+				} else {
+					if (verbose)
+						cout << "<== End of file==>" << endl;
+					break;
+				}
+				continue;
+			}
 
 			/*** TX_FIFO_ALMOST_EMPTY_INT ***/
-			if (status & (uint16_t) RFM22B_Interrupt::TX_FIFO_ALMOST_EMPTY_INT) {
+			if (status & (uint16_t) RFM22B_Interrupt::TX_FIFO_ALMOST_EMPTY_INT) 
+			{
 				if (verbose)
 					cout << "<<<FIFO almost empty>>>" << endl;
-				spaceleftinfifo = refillmax;
-				refillTXFIFO(data, sizeof(data), output, packagelen,
-						indexinpackage, spaceleftinfifo);
-				enableTXMode();
+				if (packageleft > 0) {
+					tosend = (packageleft > refillmax) ?
+							refillmax : packageleft;
+					if (debug)
+						cout << "*indexinpackage=" << indexinpackage
+							 << ",packageleft="    << packageleft
+							 << ",tosend="         << tosend
+							 << endl;
+					tx[0] = 0xff;
+					memcpy(&tx[1], &data[indexinpackage], tosend);
+					transfer(tx, rx, tosend+1);
+					indexinpackage += tosend;
+					packageleft -= tosend;
+				} else {
+					if (verbose)
+						cout << "<==End of data==>" << endl;
+				}
+				continue;
 			}
 
 			/*** FIFO_UNDERFLOW_OVERFLOW ***/
 			if (status & (uint16_t) RFM22B_Interrupt::FIFO_UNDERFLOW_OVERFLOW) {
 				if (verbose)
 					cout << "<<<Over-/Underflow>>>" << endl;
-				++overorunderflows;
-				packagelen = output(data, sizeof(data));
-				if (packagelen >= 0) {
-					clearTXFIFO();
-					spaceleftinfifo = MAX_PACKET_LENGTH;
-					indexinpackage = 0;
-					if (debug)
-						cout << "Set TX length: " << packagelen << endl;
-					setTransmitPacketLength(packagelen);
-					refillTXFIFO(data, sizeof(data), output, packagelen,
-							indexinpackage, spaceleftinfifo);
+				uint8_t x = getRegister(RFM22B_Register::DEVICE_STATUS);
+				if (x & 0x80) {
+					if (verbose)
+						cout << "<==Overflow==>" << endl;
+					++overflows;
+				}
+				if (x & 0x40) {
+					if (verbose)
+						cout << "<==Underflow==>" << endl;
+					++underflows;
+				}
+				clearTXFIFO();
+				
+				packageleft = output(data, sizeof(data));
+				if (packageleft >= 0) {
+					if (verbose) {
+						cout << "<<<Output " << packageleft << " octets>>>"
+						     << endl;
+						DaisyUtils::dump(cout, data, packageleft);
+					}
+					setTransmitPacketLength(packageleft);
 					enableTXMode();
+				} else {
+					if (verbose)
+						cout << "<==End of file==>" << endl;
+					break;
 				}
 			}
-		} // end while //
 
+		} // end while //
+		if (verbose)
+			cout << "<--Main loop left-->" << endl;
+		disableTXMode();
 		setInterruptEnable(RFM22B_Interrupt::FIFO_UNDERFLOW_OVERFLOW,  false);
 		setInterruptEnable(RFM22B_Interrupt::TX_FIFO_ALMOST_EMPTY_INT, false);
+		setInterruptEnable(RFM22B_Interrupt::PACKET_SENT,              false);
 		// Wait for completion of transmission:
 		while ((uint16_t)getOperatingMode() &
 			   (uint16_t)RFM22B_Operating_Mode::TX_MODE)
 			usleep(100);
-		disableTXMode();
 		setModulationDataSource(mds_save);
 		cout << "done" << endl;
-		cout << overorunderflows << " underruns" << endl;
+		cout << overflows << " overflows, " << underflows << " underflows."
+			 << endl;
 	};
 	
 	// Receive data (blocking with timeout). Returns number of bytes received
@@ -1161,21 +1230,23 @@ namespace RFM22B_NS {
 			function<void(uint8_t*,size_t)> input, unsigned int timeout)
 	{
 		clearRXFIFO();
-		//setInterruptEnable(RFM22B_Interrupt::RSSI,                    true);
+		setInterruptEnable(RFM22B_Interrupt::RSSI,                    true);
+		setInterruptEnable(RFM22B_Interrupt::VALID_PREAMBLE,          true);
 		setInterruptEnable(RFM22B_Interrupt::SYNC_WORD,               true);
 		setInterruptEnable(RFM22B_Interrupt::CRC_ERROR,               true);
 		setInterruptEnable(RFM22B_Interrupt::FIFO_UNDERFLOW_OVERFLOW, true);
 		setInterruptEnable(RFM22B_Interrupt::VALID_PACKET_RECEIVED,   true);
 		setInterruptEnable(RFM22B_Interrupt::RX_FIFO_ALMOST_FULL_INT, true);
 		Timer timer;
+		setRXFIFOAlmostFullThreshold(40);
 		int rxbffaful = getRXFIFOAlmostFullThreshold();
-		uint32_t crcerrors = 0, overorunderflows = 0, valids = 0;
+		uint32_t crcerrors = 0, overflows = 0, underflows = 0, valids = 0;
 		uint64_t octets = 0;
 		uint8_t data[256];
 		uint8_t txb[MAX_PACKET_LENGTH+1]; uint8_t rxb[MAX_PACKET_LENGTH+1];
 		txb[0] = 0x7f; memset(&txb[1], 0x00, sizeof(txb)-1);
 		int alreadyreceived = 0, packagelength = 0;
-		bool bad = false; // Error flag
+		bool sync = false;
 
 		cout << "Now listening for " << timeout << "s ... ";
 		cout.flush();
@@ -1190,30 +1261,124 @@ namespace RFM22B_NS {
 
 			/*** RSSI ***/
 			if (status & (uint16_t) RFM22B_Interrupt::RSSI) {
-				alreadyreceived = 0;
-				packagelength = 0;
-				bad = false;
 				if (verbose)
 					cout << "<<<Squelch open>>>" << endl;
+			}
+			
+			if (status & (uint16_t) RFM22B_Interrupt::VALID_PREAMBLE) {
+				if (verbose)
+					cout << "<<<Valid preamble>>>" << endl;
+				clearRXFIFO();
+				sync = false;
 			}
 
 			/*** SYNC_WORD ***/
 			if (status & (uint16_t) RFM22B_Interrupt::SYNC_WORD) {
-				packagelength = 0;
-				alreadyreceived = 0;
-				uint8_t *rxptr = data;
-				bad = false;
 				if (verbose)
 					cout << "<<<Sync>>>" << endl;
+				alreadyreceived = 0;
+				sync = true;
 			}
 
-			/*** FIFO_UNDERFLOW_OVERFLOW ***/
-			if (status & (uint16_t) RFM22B_Interrupt::FIFO_UNDERFLOW_OVERFLOW) {
-				++overorunderflows;
-				clearRXFIFO();
-				bad = true;
+			/*** VALID_PACKET_RECEIVED ***/
+			if (status & (uint16_t) RFM22B_Interrupt::VALID_PACKET_RECEIVED) {
 				if (verbose)
-					cout << "<<<Over-/Underflow>>>" << endl;
+					cout << "<<<Valid packet received>>>" << endl;
+				if (sync) {
+					if (alreadyreceived == 0) {
+						transfer(txb, rxb, 2);
+						packagelength = rxb[1];
+						if (debug)
+							cout << "---First of ";
+					} else {
+						if (debug)
+							cout << "---"
+							     << alreadyreceived << " of ";
+					}
+					int received = packagelength - alreadyreceived;
+					if (debug)
+						cout << packagelength << ", got:"
+						     << received << "---" << endl;
+					if ((received >= 0) && 
+						(alreadyreceived + received == packagelength) &&
+						(received <= MAX_PACKET_LENGTH))
+					{
+						transfer(txb, rxb, received+1);
+						if (debug) {
+							cout << "---store data---" << endl;
+							DaisyUtils::dump(cout, &rxb[1], received);
+						}
+						memcpy(&data[alreadyreceived], &rxb[1], received);
+						alreadyreceived += received;
+						++valids;
+						octets += packagelength;
+						if (verbose) {
+							cout << "---Deliver---" << endl;
+							DaisyUtils::dump(cout, data, packagelength);
+						}
+						if (input)
+							input(data, packagelength);
+						sync = false;
+					} else {
+						if (verbose)
+							cout << "!!!Inconsistency"
+							     << ":received=" << received
+							     << ",alreadyreceived=" << alreadyreceived
+							     << ",packagelength=" << packagelength
+							     << "!!!>" << endl;
+						clearRXFIFO();
+						sync = false;
+					}
+				} else {
+					if (debug)
+						cout << "<##RX outside sync##>" << endl;
+					clearRXFIFO();
+				}
+			}
+
+			/*** RX_FIFO_ALMOST_FULL_INT ***/
+			if (status & (uint16_t) RFM22B_Interrupt::RX_FIFO_ALMOST_FULL_INT) {
+				if (debug)
+					cout << "<<<RX FIFO almost full: ";
+				transfer(txb, rxb, rxbffaful+1);
+				if (sync) {
+					int received, startindex;
+					if (alreadyreceived > 0) {
+						received = rxbffaful;
+						startindex = 1;
+						if (debug)
+							cout << alreadyreceived << " of "
+							     << packagelength << ", got:"
+							     << received << ">>>" << endl;
+					} else {
+						packagelength = rxb[1];
+						received = rxbffaful - 1;
+						startindex = 2;
+						if (debug)
+							cout << "First of "
+							     << packagelength << ", got:"
+							     << received << ">>>" << endl;
+					}
+					if (alreadyreceived + received <= sizeof(data)) {
+						if (debug) {
+							cout << "---store data---" << endl;
+							DaisyUtils::dump(cout, &rxb[startindex], received);
+						}
+						memcpy(&data[alreadyreceived], &rxb[startindex],
+								received);
+						alreadyreceived += received;
+					} else {
+						if (debug)
+							cout << "<<<Too much data:"
+								 << alreadyreceived + rxbffaful << endl;
+						clearRXFIFO();
+						sync = false;
+					}
+				} else {
+					if (debug)
+						cout << " outside sync>>>" << endl;
+					clearRXFIFO();
+				}
 			}
 
 			/*** CRC_ERROR ***/
@@ -1221,80 +1386,35 @@ namespace RFM22B_NS {
 				if (verbose)
 					cout << "<<<CRC error>>>" << endl;
 				++crcerrors;
+				sync = false;
 			}
 
-			/*** RX_FIFO_ALMOST_FULL_INT ***/
-			if (status & (uint16_t) RFM22B_Interrupt::RX_FIFO_ALMOST_FULL_INT) {
-				if (!packagelength)
-					packagelength = getReceivedPacketLength();
-				int readlen = min(rxbffaful, packagelength - alreadyreceived);
-				transfer(txb, rxb, readlen);
-				if (verbose)
-					cout << "<<<RX FIFO almost full:"
-						 << packagelength << ":"
-						 << alreadyreceived << ":"
-						 << readlen << ">>>"
-						 << endl;
-				if ((!bad) && (alreadyreceived + readlen <= sizeof(data))) {
-					memcpy(&data[alreadyreceived], &rxb[1], readlen);
-					alreadyreceived += readlen;
-				} else {
-					bad = true;
-					if (verbose)
-						cout << "<<<Too much data:"
-							 << packagelength << ":"
-							 << alreadyreceived << ":"
-							 << readlen << ">>>"
-							 << endl;
-				}
-			}
-
-			/*** VALID_PACKET_RECEIVED ***/
-			if (status & (uint16_t) RFM22B_Interrupt::VALID_PACKET_RECEIVED) {
-				if (!packagelength)
-					packagelength = getReceivedPacketLength();
-				int readlen = packagelength - alreadyreceived;
-				if ((readlen < 0) || readlen >= sizeof(rxb)) {
-					bad = true;
-					if (verbose)
-						cout << "<<<Inconsistent package length:"
-							 << packagelength << ":"
-							 << alreadyreceived << ":"
-							 << readlen << ">>>"
-							 << endl;
+			/*** FIFO_UNDERFLOW_OVERFLOW ***/
+			if (status & (uint16_t) RFM22B_Interrupt::FIFO_UNDERFLOW_OVERFLOW) {
+				if (sync) {
+					if (debug)
+						cout << "<<<Over-/Underflow>>>" << endl;
 					clearRXFIFO();
-				} else {
-					transfer(txb, rxb, readlen);
-					if (verbose)
-						cout << "<<<Valid package received:"
-						     << packagelength << ":"
-							 << alreadyreceived << ":"
-							 << readlen << ">>>"
-						     << endl;
-					if ((!bad) && (alreadyreceived + readlen <= sizeof(data))) {
-						memcpy(&data[alreadyreceived], &rxb[1], readlen);
-						alreadyreceived += readlen;
-						++valids;
-						if (input)
-							input(data, alreadyreceived);
-						octets += alreadyreceived;
-						alreadyreceived = 0;
-						packagelength = 0;
-						bad = false;
-					} else {
-						if (verbose && !bad)
-							cout << "<<<Too much data:"
-							 	 << packagelength << ":"
-								 << alreadyreceived << ":"
-								 << readlen << ">>>"
-								 << endl;
-						bad = true;
+					uint8_t x = getRegister(RFM22B_Register::DEVICE_STATUS);
+					if (x & 0x80) {
+						if (verbose)
+							cout << "<==Overflow==>" << endl;
+						++overflows;
+						sync = false;
+					}
+					if (x & 0x40) {
+						if (verbose)
+							cout << "<==Underflow==>" << endl;
+						++underflows;
+						sync = false;
 					}
 				}
 			}
+
 		} // end while //
 		disableRXMode();
 		setInterruptEnable(RFM22B_Interrupt::RSSI,                    false);
+		setInterruptEnable(RFM22B_Interrupt::VALID_PREAMBLE,          false);
 		setInterruptEnable(RFM22B_Interrupt::SYNC_WORD,               false);
 		setInterruptEnable(RFM22B_Interrupt::CRC_ERROR,               false);
 		setInterruptEnable(RFM22B_Interrupt::FIFO_UNDERFLOW_OVERFLOW, false);
@@ -1303,9 +1423,10 @@ namespace RFM22B_NS {
 		cout << octets << " octets"
 			 << endl;
 		cout << "  "
-			 << valids           << " pkgs, "
-			 << crcerrors        << " CRC err, "
-			 << overorunderflows << " misses"
+			 << valids     << " pkgs, "
+			 << crcerrors  << " CRC err, "
+			 << overflows  << " overflows, "
+			 << underflows << " underflows"
 			 << endl;
 	};
 	

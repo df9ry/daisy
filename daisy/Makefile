@@ -34,7 +34,7 @@ $(CONFIGURATION)/daisy: daisy.cpp \
 	
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross GCC Compiler and Linker'
-	$(GXX) -pthread -std=c++11 -o $@ $(basename $(notdir $@)).cpp \
+	$(GXX) -pthread -std=c++11 -rdynamic -o $@ $(basename $(notdir $@)).cpp \
 		$(CONFIGURATION)/rfm22b.o \
 		$(CONFIGURATION)/utility.o \
 		$(CONFIGURATION)/bcm2835.o
@@ -44,14 +44,14 @@ $(CONFIGURATION)/daisy: daisy.cpp \
 $(CONFIGURATION)/%.o: %.cpp *.h
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross GCC Compiler and Linker'
-	$(GXX) -pthread -std=c++11 -c -o $@ $(basename $(notdir $@)).cpp
+	$(GXX) -pthread -std=c++11 -rdynamic -c -o $@ $(basename $(notdir $@)).cpp
 	@echo 'Finished building target: $@'
 	-@echo ' '
 
 $(CONFIGURATION)/%.o: %.c *.h
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross GCC Compiler and Linker'
-	$(GCC) -pthread -c -o $@ $(basename $(notdir $@)).c
+	$(GCC) -pthread -rdynamic -c -o $@ $(basename $(notdir $@)).c
 	@echo 'Finished building target: $@'
 	-@echo ' '
 

@@ -21,6 +21,7 @@
 #include <map>
 
 #include <signal.h>
+#include <execinfo.h>
 
 #include "rfm22b.h"
 #include "daisy_exception.h"
@@ -481,6 +482,24 @@ static void shell(RFM22B& chip) {
 	cout << "Daisy Shell exit" << endl;
 }
 
+static inline void stacktrace() {
+	static const int   SIZE = 100;
+	void              *buffer[SIZE];
+	char             **strings;
+	int                j, nptrs;
+	
+	nptrs = backtrace(buffer, SIZE);
+	printf("backtrace() returned %d addresses\n", nptrs);
+	strings = backtrace_symbols(buffer, nptrs);
+	if (strings == NULL) {
+		perror("backtrace_symbols");
+		exit(EXIT_FAILURE);
+	}
+	for (j = 0; j < nptrs; j++)
+		printf("%s\n", strings[j]);
+	exit(EXIT_FAILURE);
+}
+
 static void handle_signal(int signal) {
     const char *signal_name;
     sigset_t pending;
@@ -503,7 +522,8 @@ static void handle_signal(int signal) {
             exit(0);
             break;
         case SIGSEGV:
-            printf("\nCaught SIGSEGV, exiting now\n");
+            printf("\nCaught SIGSEGV, stacktrace\n");
+            stacktrace();
             exit(0);
             break;
         default:
