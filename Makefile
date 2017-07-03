@@ -16,10 +16,10 @@
 #     along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
 
 .PHONY: all \
-	driver rfm22b-spi hello hellodrv snull daisy_gui c2e tests \
+	driver rfm22b-spi rfm22b-dev hello hellodrv snull daisy_gui c2e tests \
 	clean kernel daisy kernel_clean
 
-all: rfm22b-spi
+all: rfm22b-dev
 
 daisy:
 	$(MAKE) -C daisy all
@@ -30,6 +30,9 @@ driver:
 rfm22b-spi:
 	$(MAKE) -C rfm22b-spi all
 
+rfm22b-dev:
+	$(MAKE) -C rfm22b-dev all
+
 hello:
 	$(MAKE) -C test/test0001 all
 
@@ -38,6 +41,9 @@ hellodrv:
 
 snull:
 	$(MAKE) -C test/test0003 all
+
+test0004:
+	$(MAKE) -C test/test0004 all
 
 daisy_gui:
 	$(MAKE) -C daisy_gui all
@@ -51,6 +57,7 @@ tests:
 clean:
 	$(MAKE) -C driver     clean
 	$(MAKE) -C rfm22b-spi clean
+	$(MAKE) -C rfm22b-dev clean
 	$(MAKE) -C daisy      clean
 	$(MAKE) -C daisy_gui  clean
 	$(MAKE) -C c2e        clean

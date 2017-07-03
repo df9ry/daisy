@@ -150,6 +150,10 @@ static int rfm22b_spi_remove(struct spi_device *spi)
 	return 0;
 }
 
+static void rfm22b_spi_shutdown(struct spi_device *spi)
+{
+}
+
 static const struct of_device_id rfm22b_spi_of_match[] = {
 	{ .compatible = "st,rfm22b", },
 	{ }
@@ -169,6 +173,7 @@ static struct spi_driver rfm22b_spi_driver = {
 	},
 	.probe		= rfm22b_spi_probe,
 	.remove		= rfm22b_spi_remove,
+	.shutdown   = rfm22b_spi_shutdown,
 	.id_table	= rfm22b_spi_id,
 };
 
@@ -186,13 +191,16 @@ static void rfm22b_term(void)
 	//printk(KERN_DEBUG "rfm22b: Cleanup\n");
 	if (spi_driver_initialized)
 		spi_unregister_driver(&rfm22b_spi_driver);
+#if 0
 	bcm2835_release();
+#endif
 }
 
 static int __init rfm22b_init(void)
 {
 	int erc;
 
+#if 0
 	//printk(KERN_DEBUG "rfm22b: Initializing\n");
 	/* Initialize the BCM2835 */
 	erc = bcm2835_initialize();
@@ -238,6 +246,7 @@ static int __init rfm22b_init(void)
 			bcm2835_spi_transfernb(init_data[i], rx, 2);
 		mdelay(10); // Let the device time to settle up
 	}
+#endif
 
 	erc = spi_register_driver(&rfm22b_spi_driver);
 	if (erc != 0) {

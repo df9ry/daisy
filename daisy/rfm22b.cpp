@@ -28,6 +28,8 @@
 #include <unistd.h>
 #include <sys/time.h>
 
+#include <linux/spi/spi.h>
+
 #include "rfm22b.h"
 #include "rfm22b_types.h"
 #include "rfm22b_registers.h"
@@ -235,6 +237,8 @@ namespace RFM22B_NS {
 
 	// Constructor:
 	RFM22B::RFM22B() {
+		
+		
 		if (init_state != 0)
 			throw daisy_exception("Invalid init state", to_string(init_state));
 		if (!bcm2835_init())
