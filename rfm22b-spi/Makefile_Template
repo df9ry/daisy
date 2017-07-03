@@ -15,50 +15,8 @@
 #     You should have received a copy of the GNU General Public License
 #     along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
 
-.PHONY: all \
-	driver rfm22b-spi hello hellodrv snull daisy_gui c2e tests \
-	clean kernel daisy kernel_clean
-
-all: rfm22b-spi
-
-daisy:
-	$(MAKE) -C daisy all
-	
-driver:
-	$(MAKE) -C driver all
-
-rfm22b-spi:
-	$(MAKE) -C rfm22b-spi all
-
-hello:
-	$(MAKE) -C test/test0001 all
-
-hellodrv:
-	$(MAKE) -C test/test0002 all
-
-snull:
-	$(MAKE) -C test/test0003 all
-
-daisy_gui:
-	$(MAKE) -C daisy_gui all
-	
-c2e:
-	$(MAKE) -C c2e all
-
-tests:
-	$(MAKE) -C test all
-
-clean:
-	$(MAKE) -C driver     clean
-	$(MAKE) -C rfm22b-spi clean
-	$(MAKE) -C daisy      clean
-	$(MAKE) -C daisy_gui  clean
-	$(MAKE) -C c2e        clean
-	$(MAKE) -C test       clean
-
-kernel:
-	$(MAKE) -C kernel all
-	
-kernel_clean:
-	$(MAKE) -C kernel clean
-
+obj-m           := rfm22b-spi.o
+rfm22b-spi-objs += bcm2835.o
+rfm22b-spi-objs += fileio.o
+rfm22b-spi-objs += initdata.o
+rfm22b-spi-objs += main.o

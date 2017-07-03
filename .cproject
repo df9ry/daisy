@@ -30,6 +30,12 @@
 								</option>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.604754205" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" useByScannerDiscovery="false" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="mm_segment_t=int"/>
+									<listOptionValue builtIn="false" value="&quot;__init=/* */&quot;"/>
+									<listOptionValue builtIn="false" value="__term"/>
+									<listOptionValue builtIn="false" value="&quot;MODULE_AUTHOR(X)=/* */&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;MODULE_DESCRIPTION(X)=/* */&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;MODULE_LICENSE(X)=/* */&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;MODULE_VERSION(X)=/* */&quot;"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.420176478" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
@@ -94,6 +100,13 @@
 								</option>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.448275275" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" useByScannerDiscovery="false" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="mm_segment_t=int"/>
+									<listOptionValue builtIn="false" value="&quot;__init=/* */&quot;"/>
+									<listOptionValue builtIn="false" value="__term"/>
+									<listOptionValue builtIn="false" value="&quot;MODULE_AUTHOR(X)=/* */&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;MODULE_LICENSE=/* */&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;MODULE_DESCRIPTION(X)=/* */&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;MODULE_LICENSE(X)=/* */&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;MODULE_VERSION(X)=/* */&quot;"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.2030990451" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>

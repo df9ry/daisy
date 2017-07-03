@@ -15,50 +15,30 @@
 #     You should have received a copy of the GNU General Public License
 #     along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
 
-.PHONY: all \
-	driver rfm22b-spi hello hellodrv snull daisy_gui c2e tests \
-	clean kernel daisy kernel_clean
+include ../environment.mk
 
-all: rfm22b-spi
-
-daisy:
-	$(MAKE) -C daisy all
-	
-driver:
-	$(MAKE) -C driver all
-
-rfm22b-spi:
-	$(MAKE) -C rfm22b-spi all
-
-hello:
-	$(MAKE) -C test/test0001 all
-
-hellodrv:
-	$(MAKE) -C test/test0002 all
-
-snull:
-	$(MAKE) -C test/test0003 all
-
-daisy_gui:
-	$(MAKE) -C daisy_gui all
-	
-c2e:
-	$(MAKE) -C c2e all
-
-tests:
-	$(MAKE) -C test all
+# All Target
+all:
+	@echo 'Invoking: Module rfm22b-spi build'
+ifeq ($(wildcard $(CONFIGURATION)),)
+	-@$(MKDIR) $(CONFIGURATION)
+endif
+	$(LN) ${CURDIR}/*.[hc] $(CONFIGURATION)/
+	$(LN) ${CURDIR}/Makefile_Template $(CONFIGURATION)/Makefile
+	@echo 'Invoking: Cross GCC module build'
+	$(MAKE) CONFIG_DEBUG_SECTION_MISMATCH=y \
+			ARCH=arm CROSS_COMPILE=$(TOOLSET_PREFIX) \
+		-C $(KERNEL_SRC) \
+		M=${CURDIR}/$(CONFIGURATION) modules
+	@echo 'Finished building module rfm22b-spi'
+	-@echo ' '
 
 clean:
-	$(MAKE) -C driver     clean
-	$(MAKE) -C rfm22b-spi clean
-	$(MAKE) -C daisy      clean
-	$(MAKE) -C daisy_gui  clean
-	$(MAKE) -C c2e        clean
-	$(MAKE) -C test       clean
+ifneq ($(wildcard $(CONFIGURATION)),)
+	$(MAKE) -C $(KERNEL_SRC) \
+		M=${CURDIR}/$(CONFIGURATION) clean
+	$(RMDIR) $(CONFIGURATION)
+endif
+	-@echo ' '
 
-kernel:
-	$(MAKE) -C kernel all
-	
-kernel_clean:
-	$(MAKE) -C kernel clean
-
+.PHONY: all clean
