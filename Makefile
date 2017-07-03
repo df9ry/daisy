@@ -17,9 +17,9 @@
 
 .PHONY: all \
 	driver rfm22b-spi rfm22b-dev hello hellodrv snull daisy_gui c2e tests \
-	clean kernel daisy kernel_clean
+	test0004 clean kernel daisy kernel_clean
 
-all: rfm22b-dev
+all: test0004 rfm22b-dev
 
 daisy:
 	$(MAKE) -C daisy all

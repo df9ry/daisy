@@ -21,7 +21,7 @@ include ../../environment.mk
 all: $(CONFIGURATION)/test0004
 
 # Tool invocations
-$(CONFIGURATION)/test0004: *.cpp
+$(CONFIGURATION)/test0004: *.cpp *.h
 	@echo 'Building target: $@'
 ifeq ($(wildcard $(CONFIGURATION)),)
 	-@$(MKDIR) $(CONFIGURATION)

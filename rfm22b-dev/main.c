@@ -36,8 +36,10 @@
 
 #include <linux/uaccess.h>
 
-#define CONFIG_OF 1
-#define VERBOSE   1
+#define CONFIG_OF     1
+#define VERBOSE       1
+#undef  CONFIG_COMPAT
+#define DEBUG         1
 
 /*
  * This supports access to SPI devices using normal userspace I/O calls.
@@ -159,6 +161,7 @@ rfm22b_dev_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos
 	struct rfm22b_dev_data	*rfm22b_dev;
 	ssize_t			status = 0;
 
+	printk(KERN_DEBUG "RFM22B-DEV: READ\n");
 	/* chipselect only toggles at start or end of operation */
 	if (count > bufsiz)
 		return -EMSGSIZE;
@@ -190,6 +193,7 @@ rfm22b_dev_write(struct file *filp, const char __user *buf,
 	ssize_t			status = 0;
 	unsigned long		missing;
 
+	printk(KERN_DEBUG "RFM22B-DEV: WRITE\n");
 	/* chipselect only toggles at start or end of operation */
 	if (count > bufsiz)
 		return -EMSGSIZE;
@@ -218,6 +222,7 @@ static int rfm22b_dev_message(struct rfm22b_dev_data *rfm22b_dev,
 	u8			*tx_buf, *rx_buf;
 	int			status = -EFAULT;
 
+	printk(KERN_DEBUG "RFM22B-DEV: MESSAGE\n");
 	spi_message_init(&msg);
 	k_xfers = kcalloc(n_xfers, sizeof(*k_tmp), GFP_KERNEL);
 	if (k_xfers == NULL)
@@ -232,10 +237,12 @@ static int rfm22b_dev_message(struct rfm22b_dev_data *rfm22b_dev,
 	total = 0;
 	tx_total = 0;
 	rx_total = 0;
+	printk(KERN_DEBUG "RFM22B-DEV: MESSAGE[1]\n");
 	for (n = n_xfers, k_tmp = k_xfers, u_tmp = u_xfers;
 			n;
 			n--, k_tmp++, u_tmp++) {
 		k_tmp->len = u_tmp->len;
+		printk(KERN_DEBUG "RFM22B-DEV: MESSAGE[LOOP]\n");
 
 		total += k_tmp->len;
 		/* Since the function returns the total length of transfers
@@ -295,6 +302,14 @@ static int rfm22b_dev_message(struct rfm22b_dev_data *rfm22b_dev,
 			u_tmp->bits_per_word ? : rfm22b_dev->spi->bits_per_word,
 			u_tmp->delay_usecs,
 			u_tmp->speed_hz ? : rfm22b_dev->spi->max_speed_hz);
+		printk(KERN_DEBUG "xfer len %u %s%s%s%dbits %u usec %uHz\n",
+			u_tmp->len,
+			u_tmp->rx_buf ? "rx " : "",
+			u_tmp->tx_buf ? "tx " : "",
+			u_tmp->cs_change ? "cs " : "",
+			u_tmp->bits_per_word ? : rfm22b_dev->spi->bits_per_word,
+			u_tmp->delay_usecs,
+			u_tmp->speed_hz ? : rfm22b_dev->spi->max_speed_hz);
 #endif
 		spi_message_add_tail(k_tmp, &msg);
 	}
@@ -303,6 +318,17 @@ static int rfm22b_dev_message(struct rfm22b_dev_data *rfm22b_dev,
 	if (status < 0)
 		goto done;
 
+	{
+		struct spi_ioc_transfer *u = u_xfers;
+		printk(KERN_DEBUG "TX:%02x|%02x|%02x\n",
+				((uint8_t*)u->tx_buf)[0],
+				((uint8_t*)u->tx_buf)[1],
+				((uint8_t*)u->tx_buf)[2]);
+		printk(KERN_DEBUG "RX:%02x|%02x|%02x\n",
+				((uint8_t*)u->rx_buf)[0],
+				((uint8_t*)u->rx_buf)[1],
+				((uint8_t*)u->rx_buf)[2]);
+	}
 	/* copy any rx data out of bounce buffer */
 	rx_buf = rfm22b_dev->rx_buffer;
 	for (n = n_xfers, u_tmp = u_xfers; n; n--, u_tmp++) {
@@ -330,6 +356,7 @@ rfm22b_dev_get_ioc_message(unsigned int cmd, struct spi_ioc_transfer __user *u_i
 	struct spi_ioc_transfer	*ioc;
 	u32	tmp;
 
+	printk(KERN_DEBUG "RFM22B-DEV: IOCTL %x\n", cmd);
 	/* Check type, command number and direction */
 	if (_IOC_TYPE(cmd) != SPI_IOC_MAGIC
 			|| _IOC_NR(cmd) != _IOC_NR(SPI_IOC_MESSAGE(0))
@@ -365,9 +392,11 @@ rfm22b_dev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	unsigned		n_ioc;
 	struct spi_ioc_transfer	*ioc;
 
+	printk(KERN_DEBUG "RFM22B-DEV: IOCTL %x\n", cmd);
 	/* Check type and command number */
 	if (_IOC_TYPE(cmd) != SPI_IOC_MAGIC)
 		return -ENOTTY;
+
 
 	/* Check access direction once here; don't repeat below.
 	 * IOC_DIR is from the user perspective, while access_ok is
@@ -588,6 +617,7 @@ static int rfm22b_dev_open(struct inode *inode, struct file *filp)
 	struct rfm22b_dev_data	*rfm22b_dev;
 	int			status = -ENXIO;
 
+	printk(KERN_DEBUG "RFM22B-DEV: OPEN");
 	mutex_lock(&device_list_lock);
 
 	list_for_each_entry(rfm22b_dev, &device_list, device_entry) {
@@ -639,6 +669,7 @@ static int rfm22b_dev_release(struct inode *inode, struct file *filp)
 {
 	struct rfm22b_dev_data	*rfm22b_dev;
 
+	printk(KERN_DEBUG "RFM22B-DEV: RELEASE\n");
 	mutex_lock(&device_list_lock);
 	rfm22b_dev = filp->private_data;
 	filp->private_data = NULL;
@@ -749,6 +780,7 @@ static int rfm22b_dev_probe(struct spi_device *spi)
 	int			status;
 	unsigned long		minor;
 
+	printk(KERN_DEBUG "RFM22B-DEV: PROBE\n");
 	/*
 	 * rfm22b_dev should never be referenced in DT without a specific
 	 * compatible string, it is a Linux implementation thing
@@ -811,6 +843,7 @@ static int rfm22b_dev_remove(struct spi_device *spi)
 {
 	struct rfm22b_dev_data	*rfm22b_dev = spi_get_drvdata(spi);
 
+	printk(KERN_DEBUG "RFM22B-DEV: REMOVE\n");
 	/* make sure ops on existing fds can abort cleanly */
 	spin_lock_irq(&rfm22b_dev->spi_lock);
 	rfm22b_dev->spi = NULL;
@@ -850,6 +883,7 @@ static int __init rfm22b_dev_init(void)
 {
 	int status;
 
+	printk(KERN_DEBUG "RFM22B-DEV: INIT\n");
 	/* Claim our 256 reserved device numbers.  Then register a class
 	 * that will key udev/mdev to add/remove /dev nodes.  Last, register
 	 * the driver which manages those device numbers.
@@ -876,6 +910,7 @@ module_init(rfm22b_dev_init);
 
 static void __exit rfm22b_dev_exit(void)
 {
+	printk(KERN_DEBUG "RFM22B-DEV: EXIT\n");
 	spi_unregister_driver(&rfm22b_dev_spi_driver);
 	class_destroy(rfm22b_dev_class);
 	unregister_chrdev(SPIDEV_MAJOR, rfm22b_dev_spi_driver.driver.name);
