@@ -855,11 +855,11 @@ static int __init spidev_init(void)
 	 * the driver which manages those device numbers.
 	 */
 	BUILD_BUG_ON(N_SPI_MINORS > 256);
-	status = register_chrdev(SPIDEV_MAJOR, "rs22b", &spidev_fops);
+	status = register_chrdev(SPIDEV_MAJOR, "rfm22b", &spidev_fops);
 	if (status < 0)
 		return status;
 
-	spidev_class = class_create(THIS_MODULE, "rs22b-dev");
+	spidev_class = class_create(THIS_MODULE, "rfm22b-dev");
 	if (IS_ERR(spidev_class)) {
 		unregister_chrdev(SPIDEV_MAJOR, spidev_spi_driver.driver.name);
 		return PTR_ERR(spidev_class);
