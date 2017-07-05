@@ -155,7 +155,9 @@ static void rfm22b_spi_shutdown(struct spi_device *spi)
 }
 
 static const struct of_device_id rfm22b_spi_of_match[] = {
-	{ .compatible = "st,rfm22b", },
+	{ .compatible = "hoperf,rfm22b" },
+	{ .compatible = "rfm22b" },
+	{ .compatible = "spidev" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rfm22b_spi_of_match);
