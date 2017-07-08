@@ -16,16 +16,15 @@
  *    along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _RFM22B_DEV_H_
-#define _RFM22B_DEV_H_
+#ifndef _SPI16_H_
+#define _SPI16_H_
  
-#define DRV_NAME           "rfm22b-bus"
-#define SPI_MAX_SPEED_HZ   1000000
+#define DRV_NAME           "spi16"
+#define SPI_MAX_SPEED_HZ   50000
 #define SPI_BUS_NUM        16
 
-struct rfm22b_master_info {
+struct spi16_master_info {
 	// Specific data goes here
 };
  
-#endif // _RFM22B_DEV_H_
- 
+#endif // _SPI16_H_

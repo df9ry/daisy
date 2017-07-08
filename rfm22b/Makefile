@@ -19,7 +19,7 @@ include ../environment.mk
 
 # All Target
 all:
-	@echo 'Invoking: Module rfm22b-bus build'
+	@echo 'Invoking: Module rfm22b build'
 ifeq ($(wildcard $(CONFIGURATION)),)
 	-@$(MKDIR) $(CONFIGURATION)
 endif
@@ -30,7 +30,7 @@ endif
 			ARCH=arm CROSS_COMPILE=$(TOOLSET_PREFIX) \
 		-C $(KERNEL_SRC) \
 		M=${CURDIR}/$(CONFIGURATION) modules
-	@echo 'Finished building module rfm22b-bus'
+	@echo 'Finished building module rfm22b'
 	-@echo ' '
 
 clean:
