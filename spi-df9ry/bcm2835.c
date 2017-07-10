@@ -1,4 +1,4 @@
-/* Copyright 2017 Tania Hagn
+/* Copyright 2018 Tania Hagn
  *
  * This file is part of Daisy.
  *
@@ -21,34 +21,25 @@
 #include <linux/ioport.h>
 #include <asm/io.h>
 
+#include "spi-df9ry.h"
+#include "bcm2835.h"
 #include "bcm2835_hw.h"
-#include "fileio.h"
 
 /*
  * Memory lock to BCM2835 SPI area
  */
+static struct resource *spi0_res        = NULL;
 static struct resource *spi_memory_lock = NULL;
 
 /*
- * Physical address and size of the peripherals block
- */
-static uint32_t *bcm2835_peripherals_base = MAP_FAILED;
-static uint32_t bcm2835_peripherals_size = 0;
-
-/* Virtual memory address of the mapped peripherals block
+ * Virtual memory address of the mapped peripherals block
  */
 static uint32_t *bcm2835_peripherals = (uint32_t *)MAP_FAILED;
 
 /* And the register bases within the peripherals block
  */
 static volatile uint32_t *bcm2835_gpio        = (uint32_t *)MAP_FAILED;
-static volatile uint32_t *bcm2835_pwm         = (uint32_t *)MAP_FAILED;
-static volatile uint32_t *bcm2835_clk         = (uint32_t *)MAP_FAILED;
-static volatile uint32_t *bcm2835_pads        = (uint32_t *)MAP_FAILED;
 static volatile uint32_t *bcm2835_spi0        = (uint32_t *)MAP_FAILED;
-static volatile uint32_t *bcm2835_bsc0        = (uint32_t *)MAP_FAILED;
-static volatile uint32_t *bcm2835_bsc1        = (uint32_t *)MAP_FAILED;
-static volatile uint32_t *bcm2835_st	      = (uint32_t *)MAP_FAILED;
 
 /*
  * Read with memory barriers from peripheral
@@ -144,7 +135,7 @@ int bcm2835_spi_begin(void) {
     /* Clear TX and RX fifos */
     bcm2835_peri_write_nb(paddr, BCM2835_SPI0_CS_CLEAR);
 
-    return 1; // OK
+    return 0; // OK
 }
 
 void bcm2835_spi_end(void) {
@@ -162,55 +153,26 @@ void bcm2835_spi_end(void) {
 /*
  * Initialize the BCM2835.
  */
-int bcm2835_initialize(void) {
-	struct file  *fp;
-    unsigned char buf[4];
-
-	/* Figure out the base and size of the peripheral address block
-    // using the device-tree. Required for RPi2, optional for RPi 1
-    */
-    fp = file_open(BMC2835_RPI2_DT_FILENAME, O_RDONLY, 0);
-    if (fp == NULL) {
-    	printk(KERN_ERR "rfm22b: Unable to open file %s\n",
-    			BMC2835_RPI2_DT_FILENAME);
-    	return -EBADF;
-    }
-    if (file_read(fp, BMC2835_RPI2_DT_PERI_BASE_ADDRESS_OFFSET, buf, 4) == -1) {
-    	printk(KERN_ERR "rfm22b: Unable to read bcm2835_peripherals_base\n");
-    	return -EBADF;
-    }
-    bcm2835_peripherals_base =(uint32_t *)
-    		(buf[0] << 24 | buf[1] << 16 | buf[2] << 8 | buf[3] << 0);
-    if (file_read(fp, BMC2835_RPI2_DT_PERI_SIZE_OFFSET, buf, 4) == -1) {
-    	printk(KERN_ERR "rfm22b: Unable to read bcm2835_peripherals_base\n");
-    	return -EBADF;
-    }
-    bcm2835_peripherals_size =
-    		(buf[0] << 24 | buf[1] << 16 | buf[2] << 8 | buf[3] << 0);
-	file_close(fp);
-	printk(KERN_DEBUG "rfm22b: BCM2835 is at %x-%x\n",
-			(uint32_t)bcm2835_peripherals_base,
-			(uint32_t)bcm2835_peripherals_base + bcm2835_peripherals_size);
-
+int bcm2835_initialize(struct resource *res) {
+	spi0_res = res;
     /*
      * Reserve IO memory region for BCM2835 SPI
      */
 	spi_memory_lock = request_mem_region(
-			(uint32_t)bcm2835_peripherals_base + BCM2835_SPI0_BASE,
-			BCM2835_SPI0_SIZE, "rfm22b");
+			spi0_res->start, spi0_res->end - spi0_res->start, DRV_NAME);
 	if (!spi_memory_lock) {
-    	printk(KERN_ERR "rfm22b: Unable to lock BCM2835_SPI0\n");
+    	printk(KERN_ERR DRV_NAME ": Unable to lock BCM2835_SPI0\n");
     	return -EPERM;
 	}
 
 	// Map BCM2835 into virtual memory:
-	bcm2835_peripherals = ioremap(
-			(uint32_t)bcm2835_peripherals_base, bcm2835_peripherals_size);
+	bcm2835_peripherals = ioremap(res->start - BCM2835_SPI0_BASE,
+											   BCM2835_BSC1_BASE);
 	if (!bcm2835_peripherals) {
-    	printk(KERN_ERR "rfm22b: Unable to map memory\n");
+    	printk(KERN_ERR DRV_NAME ": Unable to map memory\n");
     	return -EPERM;
 	}
-	printk(KERN_DEBUG "rfm22b: BCM2835 mapped to %x\n",
+	printk(KERN_DEBUG DRV_NAME ": BCM2835 mapped to %x\n",
 			(uint32_t)bcm2835_peripherals);
 
     /* Now compute the base addresses of various peripherals,
@@ -218,13 +180,7 @@ int bcm2835_initialize(void) {
     // Caution: bcm2835_peripherals is uint32_t*, so divide offsets by 4
     */
     bcm2835_gpio = bcm2835_peripherals + BCM2835_GPIO_BASE/4;
-    bcm2835_pwm  = bcm2835_peripherals + BCM2835_GPIO_PWM/4;
-    bcm2835_clk  = bcm2835_peripherals + BCM2835_CLOCK_BASE/4;
-    bcm2835_pads = bcm2835_peripherals + BCM2835_GPIO_PADS/4;
     bcm2835_spi0 = bcm2835_peripherals + BCM2835_SPI0_BASE/4;
-    bcm2835_bsc0 = bcm2835_peripherals + BCM2835_BSC0_BASE/4; /* I2C */
-    bcm2835_bsc1 = bcm2835_peripherals + BCM2835_BSC1_BASE/4; /* I2C */
-    bcm2835_st   = bcm2835_peripherals + BCM2835_ST_BASE/4;
 
 	return 0;
 }
@@ -234,19 +190,12 @@ int bcm2835_initialize(void) {
  */
 extern void bcm2835_release(void) {
     if (spi_memory_lock)
-    	release_mem_region(
-    			(uint32_t)bcm2835_peripherals_base + BCM2835_SPI0_BASE,
-    			BCM2835_SPI0_SIZE);
+    	release_mem_region(spi0_res->start, spi0_res->end - spi0_res->start);
     spi_memory_lock = NULL;
+    spi0_res = NULL;
     bcm2835_peripherals = MAP_FAILED;
     bcm2835_gpio = MAP_FAILED;
-    bcm2835_pwm  = MAP_FAILED;
-    bcm2835_clk  = MAP_FAILED;
-    bcm2835_pads = MAP_FAILED;
     bcm2835_spi0 = MAP_FAILED;
-    bcm2835_bsc0 = MAP_FAILED;
-    bcm2835_bsc1 = MAP_FAILED;
-    bcm2835_st   = MAP_FAILED;
 }
 
 /* defaults to 0, which means a divider of 65536.
@@ -260,11 +209,13 @@ void bcm2835_spi_setClockDivider(uint16_t divider) {
 }
 
 /* Writes (and reads) an number of bytes to SPI */
-void bcm2835_spi_transfernb(const uint8_t* tbuf, uint8_t* rbuf, size_t len) {
+void bcm2835_spi_transfernb(const volatile uint8_t* tbuf,
+								  volatile uint8_t* rbuf, size_t len)
+{
     volatile uint32_t* paddr = bcm2835_spi0 + BCM2835_SPI0_CS/4;
     volatile uint32_t* fifo = bcm2835_spi0 + BCM2835_SPI0_FIFO/4;
-    uint32_t TXCnt=0;
-    uint32_t RXCnt=0;
+    uint32_t tx_count = 0;
+    uint32_t rx_count = 0;
 
     /*
      * This is Polled transfer as per section 10.6.1
@@ -277,19 +228,21 @@ void bcm2835_spi_transfernb(const uint8_t* tbuf, uint8_t* rbuf, size_t len) {
     bcm2835_peri_set_bits(paddr, BCM2835_SPI0_CS_TA, BCM2835_SPI0_CS_TA);
 
     /* Use the FIFO's to reduce the interbyte times */
-    while((TXCnt < len)||(RXCnt < len))
+    while((tx_count < len)||(rx_count < len))
     {
         /* TX fifo not full, so add some more bytes */
-        while(((bcm2835_peri_read(paddr) & BCM2835_SPI0_CS_TXD))&&(TXCnt < len ))
+        while(((bcm2835_peri_read(paddr) & BCM2835_SPI0_CS_TXD)) &&
+        		(tx_count < len))
         {
-           bcm2835_peri_write_nb(fifo, tbuf[TXCnt]);
-           TXCnt++;
+           bcm2835_peri_write_nb(fifo, ((uint32_t)tbuf[tx_count]) << 24);
+           tx_count++;
         }
         /* Rx fifo not empty, so get the next received bytes */
-        while(((bcm2835_peri_read(paddr) & BCM2835_SPI0_CS_RXD))&&( RXCnt < len ))
+        while(((bcm2835_peri_read(paddr) & BCM2835_SPI0_CS_RXD)) &&
+        		(rx_count < len))
         {
-           rbuf[RXCnt] = bcm2835_peri_read_nb(fifo);
-           RXCnt++;
+           rbuf[rx_count] = bcm2835_peri_read_nb(fifo);
+           rx_count++;
         }
     }
     /* Wait for DONE to be set */
@@ -298,4 +251,3 @@ void bcm2835_spi_transfernb(const uint8_t* tbuf, uint8_t* rbuf, size_t len) {
     /* Set TA = 0, and also set the barrier */
     bcm2835_peri_set_bits(paddr, 0, BCM2835_SPI0_CS_TA);
 }
-

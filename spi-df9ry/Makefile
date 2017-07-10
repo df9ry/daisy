@@ -15,8 +15,30 @@
 #     You should have received a copy of the GNU General Public License
 #     along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
 
-obj-m           := rfm22b-spi.o
-rfm22b-spi-objs += bcm2835.o
-rfm22b-spi-objs += fileio.o
-rfm22b-spi-objs += initdata.o
-rfm22b-spi-objs += main.o
+include ../environment.mk
+
+# All Target
+all:
+	@echo 'Invoking: Module spi-df9ry build'
+ifeq ($(wildcard $(CONFIGURATION)),)
+	-@$(MKDIR) $(CONFIGURATION)
+endif
+	$(LN) ${CURDIR}/*.[hc] $(CONFIGURATION)/
+	$(LN) ${CURDIR}/Makefile_Template $(CONFIGURATION)/Makefile
+	@echo 'Invoking: Cross GCC module build'
+	$(MAKE) CONFIG_DEBUG_SECTION_MISMATCH=y \
+			ARCH=arm CROSS_COMPILE=$(TOOLSET_PREFIX) \
+		-C $(KERNEL_SRC) \
+		M=${CURDIR}/$(CONFIGURATION) modules
+	@echo 'Finished building module spi-df9ry'
+	-@echo ' '
+
+clean:
+ifneq ($(wildcard $(CONFIGURATION)),)
+	$(MAKE) -C $(KERNEL_SRC) \
+		M=${CURDIR}/$(CONFIGURATION) clean
+	$(RMDIR) $(CONFIGURATION)
+endif
+	-@echo ' '
+
+.PHONY: all clean

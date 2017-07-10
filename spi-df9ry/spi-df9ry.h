@@ -16,39 +16,14 @@
  *    along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _BCM2835_H_
-#define _BCM2835_H_
+#ifndef _SPI_DF9RY_H_
+#define _SPI_DF9RY_H_
 
 #include <linux/module.h>
 
-/*
- * Initialize the BCM2835.
- */
-extern int bcm2835_initialize(void);
+#define DRV_NAME	"spi-df9ry"
 
-/*
- * Release the BCM2835.
- */
-extern void bcm2835_release(void);
+#define MIN_SPEED_HZ   50000
+#define MAX_SPEED_HZ 5000000
 
-/*
- * Begin SPI communication:
- */
-extern int bcm2835_spi_begin(void);
-
-/*
- * Shutdown SPI communication:
- */
-extern void bcm2835_spi_end(void);
-
-/*
- * Set the SPI communication speed:
- */
-extern void bcm2835_spi_setClockDivider(uint16_t divider);
-
-/*
- * SPI transfer:
- */
-extern void bcm2835_spi_transfernb(const uint8_t *tx, uint8_t *rx, size_t cb);
-
-#endif /* _BCM2835_H_ */
+#endif /* _SPI_DF9RY_H_ */

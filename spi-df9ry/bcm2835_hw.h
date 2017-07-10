@@ -69,7 +69,6 @@
 #define BCM2835_GPIO_BASE       0x200000
 /*! Base Address of the SPI0 registers */
 #define BCM2835_SPI0_BASE       0x204000
-#define BCM2835_SPI0_SIZE       0x001000
 /*! Base Address of the BSC0 registers */
 #define BCM2835_BSC0_BASE 		0x205000
 /*! Base Address of the PWM registers */

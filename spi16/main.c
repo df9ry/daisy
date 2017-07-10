@@ -29,7 +29,6 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("Implementation of SPI bus 16");
 MODULE_VERSION("0.0.1");
 
-
 static struct spi_master *spi16_master = NULL;
 
 static int spi16_match(struct device *dev, struct device_driver *driver) {
@@ -99,7 +98,7 @@ static struct spi_driver spi16_driver = {
 	.remove   = spi16_remove,
 	.shutdown = spi16_shutdown,
 };
-static bool spi16_driver_inititlized = false;
+static bool spi16_driver_initialized = false;
 
 /*
  * Start / stop stuff:
@@ -109,9 +108,9 @@ static void spi16_term(void)
 	printk(KERN_INFO "spi16: Terminate\n");
 
 	printk(KERN_DEBUG "spi16: spi_unregister_driver\n");
-	if (spi16_driver_inititlized) {
+	if (spi16_driver_initialized) {
 		spi_unregister_driver(&spi16_driver);
-		spi16_driver_inititlized = false;
+		spi16_driver_initialized = false;
 	}
 
 	printk(KERN_DEBUG "spi16: spi_unregister_master\n");
@@ -178,7 +177,7 @@ static int __init spi16_init(void)
 		erc = -ENODEV;
 		goto fail;
 	}
-	spi16_driver_inititlized = true;
+	spi16_driver_initialized = true;
 
 	printk(KERN_INFO "spi16: Initialize complete\n");
 
