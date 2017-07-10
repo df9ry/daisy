@@ -24,22 +24,22 @@
 
 #include <linux/spi/spi.h>
 
-#include "spi-df9ry.h"
+#include "spi-daisy.h"
 #include "bcm2835.h"
 
-#define DF9RY_SPI_MODE_BITS	(SPI_CPOL | SPI_CPHA | SPI_CS_HIGH \
+#define daisy_SPI_MODE_BITS	(SPI_CPOL | SPI_CPHA | SPI_CS_HIGH \
 				| SPI_NO_CS | SPI_3WIRE)
 
 #undef PREPARE_MESSAGE
 
-struct df9ry_spi {
+struct daisy_spi {
 	spinlock_t    transfer_lock;
 	struct clk   *clk;
 	uint32_t      spi_hz;
 };
 
 #ifdef PREPARE_MESSAGE
-static int df9ry_spi_prepare_message(struct spi_master *master,
+static int daisy_spi_prepare_message(struct spi_master *master,
 				       struct spi_message *msg)
 {
 	//struct spi_device *spi = msg->spi;
@@ -51,18 +51,18 @@ static int df9ry_spi_prepare_message(struct spi_master *master,
 }
 #endif
 
-static void df9ry_spi_handle_err(struct spi_master *master,
+static void daisy_spi_handle_err(struct spi_master *master,
                                  struct spi_message *msg)
 {
 	printk(KERN_DEBUG DRV_NAME ": Called spi_handle_err()\n");
 }
 
-static int df9ry_spi_transfer_one(
+static int daisy_spi_transfer_one(
 					struct spi_master   *master,
 				    struct spi_device   *spi,
 				    struct spi_transfer *tfr)
 {
-	struct df9ry_spi *bs = spi_master_get_devdata(master);
+	struct daisy_spi *bs = spi_master_get_devdata(master);
 	uint32_t spi_hz = tfr->speed_hz;
 	/* Only set speed, if this time is different than last time */
 	if (spi_hz != bs->spi_hz) {
@@ -95,12 +95,12 @@ static int df9ry_spi_transfer_one(
 	return 0;
 }
 
-static void df9ry_spi_set_cs(struct spi_device *spi, bool gpio_level)
+static void daisy_spi_set_cs(struct spi_device *spi, bool gpio_level)
 {
 	printk(KERN_DEBUG DRV_NAME ": Called spi_set_cs()\n");
 }
 
-static int df9ry_spi_setup(struct spi_device *spi)
+static int daisy_spi_setup(struct spi_device *spi)
 {
 	printk(KERN_DEBUG DRV_NAME ": Called spi_setup()\n");
 	/*
@@ -121,10 +121,10 @@ static int df9ry_spi_setup(struct spi_device *spi)
 	return 0;
 }
 
-static int df9ry_spi_probe(struct platform_device *pdev)
+static int daisy_spi_probe(struct platform_device *pdev)
 {
 	struct spi_master  *master;
-	struct df9ry_spi   *bs;
+	struct daisy_spi   *bs;
 	int err;
 
 	printk(KERN_DEBUG DRV_NAME ": Called spi_probe()\n");
@@ -136,17 +136,17 @@ static int df9ry_spi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, master);
 
-	master->mode_bits          = DF9RY_SPI_MODE_BITS;
+	master->mode_bits          = daisy_SPI_MODE_BITS;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->num_chipselect     = 3;
-	master->setup              = df9ry_spi_setup;
-	master->set_cs             = df9ry_spi_set_cs;
-	master->transfer_one       = df9ry_spi_transfer_one;
-	master->handle_err         = df9ry_spi_handle_err;
+	master->setup              = daisy_spi_setup;
+	master->set_cs             = daisy_spi_set_cs;
+	master->transfer_one       = daisy_spi_transfer_one;
+	master->handle_err         = daisy_spi_handle_err;
 	master->min_speed_hz       = MIN_SPEED_HZ;
 	master->max_speed_hz       = MAX_SPEED_HZ;
 #ifdef PREPARE_MESSAGE
-	master->prepare_message    = df9ry_spi_prepare_message;
+	master->prepare_message    = daisy_spi_prepare_message;
 #endif
 	master->dev.of_node        = pdev->dev.of_node;
 
@@ -198,10 +198,10 @@ out_master_put:
 }
 
 
-static int df9ry_spi_remove(struct platform_device *pdev)
+static int daisy_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
-	struct df9ry_spi  *bs     = spi_master_get_devdata(master);
+	struct daisy_spi  *bs     = spi_master_get_devdata(master);
 
 	printk(KERN_DEBUG DRV_NAME ": Called spi_remove\n");
 
@@ -213,26 +213,26 @@ static int df9ry_spi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id df9ry_spi_match[] = {
+static const struct of_device_id daisy_spi_match[] = {
 	{ .compatible = "brcm,bcm2835-spi", }, // We need this for spidev
-	{ .compatible = "daisy,df9ry-spi", },
+	{ .compatible = "daisy,daisy-spi", },
 	{}
 };
-MODULE_DEVICE_TABLE(of, df9ry_spi_match);
+MODULE_DEVICE_TABLE(of, daisy_spi_match);
 
-static struct platform_driver df9ry_spi_driver = {
+static struct platform_driver daisy_spi_driver = {
 	.driver		= {
 		.name			= DRV_NAME,
-		.of_match_table	= df9ry_spi_match,
+		.of_match_table	= daisy_spi_match,
 	},
-	.probe		= df9ry_spi_probe,
-	.remove		= df9ry_spi_remove,
+	.probe		= daisy_spi_probe,
+	.remove		= daisy_spi_remove,
 };
-module_platform_driver(df9ry_spi_driver);
+module_platform_driver(daisy_spi_driver);
 
-MODULE_AUTHOR("Tania Hagn - DF9RY");
+MODULE_AUTHOR("Tania Hagn - DF9RY - Tania@DF9RY.de");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_DESCRIPTION("SPI driver for RFM2235B chip");
+MODULE_DESCRIPTION("SPI driver for daisy project");
 MODULE_VERSION("0.0.1");
 
 

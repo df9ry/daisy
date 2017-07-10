@@ -21,7 +21,7 @@
 #include <linux/ioport.h>
 #include <asm/io.h>
 
-#include "spi-df9ry.h"
+#include "spi-daisy.h"
 #include "bcm2835.h"
 #include "bcm2835_hw.h"
 

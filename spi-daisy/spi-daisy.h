@@ -16,14 +16,14 @@
  *    along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _SPI_DF9RY_H_
-#define _SPI_DF9RY_H_
+#ifndef _SPI_DAISY_H_
+#define _SPI_DAISY_H_
 
 #include <linux/module.h>
 
-#define DRV_NAME	"spi-df9ry"
+#define DRV_NAME	"spi-daisy"
 
 #define MIN_SPEED_HZ   50000
 #define MAX_SPEED_HZ 5000000
 
-#endif /* _SPI_DF9RY_H_ */
+#endif /* _SPI_DAISY_H_ */

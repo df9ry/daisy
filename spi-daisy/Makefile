@@ -19,7 +19,7 @@ include ../environment.mk
 
 # All Target
 all:
-	@echo 'Invoking: Module spi-df9ry build'
+	@echo 'Invoking: Module spi-daisy build'
 ifeq ($(wildcard $(CONFIGURATION)),)
 	-@$(MKDIR) $(CONFIGURATION)
 endif
@@ -30,13 +30,11 @@ endif
 			ARCH=arm CROSS_COMPILE=$(TOOLSET_PREFIX) \
 		-C $(KERNEL_SRC) \
 		M=${CURDIR}/$(CONFIGURATION) modules
-	@echo 'Finished building module spi-df9ry'
+	@echo 'Finished building module spi-daisy'
 	-@echo ' '
 
 clean:
 ifneq ($(wildcard $(CONFIGURATION)),)
-	$(MAKE) -C $(KERNEL_SRC) \
-		M=${CURDIR}/$(CONFIGURATION) clean
 	$(RMDIR) $(CONFIGURATION)
 endif
 	-@echo ' '
