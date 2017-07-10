@@ -26,9 +26,12 @@
 #include <algorithm>
 
 #include <unistd.h>
-#include <sys/time.h>
+#include <fcntl.h>
+#include <string.h>
 
-#include <linux/spi/spi.h>
+#include <sys/time.h>
+#include <sys/ioctl.h>
+#include <linux/spi/spidev.h>
 
 #include "rfm22b.h"
 #include "rfm22b_types.h"
@@ -36,11 +39,8 @@
 #include "daisy_exception.h"
 #include "defaults.h"
 #include "utility.h"
-#include "bcm2835.h"
 
 using namespace std;
-
-static int init_state = 0;
 
 class Timer {
 public:
@@ -237,30 +237,51 @@ namespace RFM22B_NS {
 
 	// Constructor:
 	RFM22B::RFM22B() {
-		
-		
-		if (init_state != 0)
-			throw daisy_exception("Invalid init state", to_string(init_state));
-		if (!bcm2835_init())
-			throw daisy_exception("Error initializing BCM2835 chip");
-		init_state = 1;
-		if (!bcm2835_spi_begin())
-			throw daisy_exception("Error initializing SPI system");
-		init_state = 2;
-		bcm2835_spi_setClockDivider(BUS_CLOCK_DIVIDER);
-		unsigned int device = getRegister(RFM22B_Register::DEVICE_TYPE);
-		if (device != 8)
-			throw daisy_exception("Invalid device", to_string(device));
-		setNarrowMode();
 	}
 	
 	// Destructor:
 	RFM22B::~RFM22B() {
-		if (init_state > 1)
-			bcm2835_spi_end();
-		if (init_state > 0)
-			bcm2835_close();
-		init_state = 0;
+		close();
+	}
+
+	bool RFM22B::open(const std::string& filename) {
+
+		if (spidev != -1)
+			throw logic_error("File is already open");
+		spidev = ::open(filename.c_str(), O_RDWR);
+		if (spidev == -1)
+			return false;
+
+		spimode = SPI_MODE_0 | SPI_NO_CS;
+		if (ioctl(spidev, SPI_IOC_WR_MODE, &spimode) == -1)
+					throw daisy_exception("Unable to set mode");
+		if (ioctl(spidev, SPI_IOC_RD_MODE, &spimode) == -1)
+					throw daisy_exception("Unable to get mode");
+
+		spibits = 8;
+		if (ioctl(spidev, SPI_IOC_WR_BITS_PER_WORD, &spibits) == -1)
+			throw daisy_exception("Unable to set bits");
+		if (ioctl(spidev, SPI_IOC_RD_BITS_PER_WORD, &spibits) == -1)
+					throw daisy_exception("Unable to get bits");
+
+		spispeed = 500000;
+		if (ioctl(spidev, SPI_IOC_WR_MAX_SPEED_HZ, &spispeed) == -1)
+			throw daisy_exception("Unable to set speed");
+		if (ioctl(spidev, SPI_IOC_RD_MAX_SPEED_HZ, &spispeed) == -1)
+			throw daisy_exception("Unable to get speed");
+
+		uint8_t device = getRegister(RFM22B_Register::DEVICE_TYPE);
+		if (device != 8)
+			throw daisy_exception("Invalid device", to_string(device));
+
+		//setNarrowMode();
+		return true;
+	}
+
+	void RFM22B::close() {
+		if (spidev != -1)
+			::close(spidev);
+		spidev = -1;
 	}
 
 	uint8_t RFM22B::getDeviceType() {
@@ -881,10 +902,11 @@ namespace RFM22B_NS {
 	}
 
 	void RFM22B::disableRXMode() {
-		setOperatingMode((RFM22B_Operating_Mode)
+		setOperatingMode((RFM22B_Operating_Mode) (
 			((uint)getOperatingMode() &
 			 ~(uint)RFM22B_Operating_Mode::RX_MODE &
-			 ~(uint)RFM22B_Operating_Mode::RX_MULTI_PACKET));
+			 ~(uint)RFM22B_Operating_Mode::RX_MULTI_PACKET) |
+			  (uint)RFM22B_Operating_Mode::READY_MODE));
 	}
 
 	void RFM22B::enableTXMode() {
@@ -895,10 +917,11 @@ namespace RFM22B_NS {
 	}
 
 	void RFM22B::disableTXMode() {
-		setOperatingMode((RFM22B_Operating_Mode)
+		setOperatingMode((RFM22B_Operating_Mode) (
 			((uint)getOperatingMode() &
 			~(uint)RFM22B_Operating_Mode::TX_MODE &
-			~(uint)RFM22B_Operating_Mode::AUTOMATIC_TRANSMISSION));
+			~(uint)RFM22B_Operating_Mode::AUTOMATIC_TRANSMISSION) |
+			 (uint)RFM22B_Operating_Mode::READY_MODE));
 	}
 
 	// Reset the device
@@ -907,6 +930,7 @@ namespace RFM22B_NS {
 				((uint)getOperatingMode() | (uint)RFM22B_Operating_Mode::RESET));
 		while ((uint)getOperatingMode() & (uint)RFM22B_Operating_Mode::RESET)
 			usleep(1);
+		setOperatingMode(RFM22B_Operating_Mode::READY_MODE);
 		usleep(20000);
 	}
 	
@@ -1063,6 +1087,9 @@ namespace RFM22B_NS {
 				x & ~0x01);
 	}
 	
+	// Note: spi_ioc_transfer on the stack didn't work, for an
+	//       unknown reason.
+	static struct spi_ioc_transfer tr[1];
 	// Transfer data
 	void RFM22B::transfer(uint8_t *tx, uint8_t *rx, size_t size) {
 		if ((!tx) || (!rx))
@@ -1070,12 +1097,25 @@ namespace RFM22B_NS {
 		if (size > MAX_PACKET_LENGTH+1)
 			throw daisy_exception(
 					"Package too long (max 65)", to_string(size));
+
 		transfer_lock.lock();
+
 		if (debug)
 			cerr << "**TX: " << DaisyUtils::print(tx, size) << endl;
-		bcm2835_spi_transfernb((char*)tx, (char*)rx, size);
+
+		tr[0].tx_buf        = (unsigned long)tx;
+		tr[0].rx_buf        = (unsigned long)rx;
+		tr[0].delay_usecs   = 0;
+		tr[0].len           = size;
+		tr[0].speed_hz      = spispeed;
+		tr[0].bits_per_word = spibits;
+
+		if (ioctl(spidev, SPI_IOC_MESSAGE(1), tr) == -1)
+			throw daisy_exception("Unable to transfer data");
+
 		if (debug)
 			cerr << "**RX: " << DaisyUtils::print(rx, size) << endl;
+
 		transfer_lock.unlock();
 	}
 
@@ -1220,9 +1260,13 @@ namespace RFM22B_NS {
 		setInterruptEnable(RFM22B_Interrupt::TX_FIFO_ALMOST_EMPTY_INT, false);
 		setInterruptEnable(RFM22B_Interrupt::PACKET_SENT,              false);
 		// Wait for completion of transmission:
-		while ((uint16_t)getOperatingMode() &
-			   (uint16_t)RFM22B_Operating_Mode::TX_MODE)
-			usleep(100);
+		timer.reset();
+		while (((uint16_t)getOperatingMode() &
+			    (uint16_t)RFM22B_Operating_Mode::TX_MODE) &&
+			   (timer.elapsed() < 2.0))
+		{
+			usleep(1000);
+		}
 		setModulationDataSource(mds_save);
 		cout << "done" << endl;
 		cout << overflows << " overflows, " << underflows << " underflows."
@@ -1531,7 +1575,7 @@ namespace RFM22B_NS {
 		uint8_t buf[2];
 		for (; rg_rv->setting[0] != 0x00; ++rg_rv)
 			transfer(rg_rv->setting, buf, 2);
-		sleep(1);
+		usleep(10);
 	}
 
 } // end namespace //

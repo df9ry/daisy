@@ -16,13 +16,16 @@
 #     along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
 
 .PHONY: all \
-	driver spi-daisy spi16 rfm22b hello hellodrv \
+	driver spi-daisy spi16 rfm22b hello hellodrv spitest \
 	snull daisy_gui c2e tests test0004 clean kernel daisy kernel_clean
 
-all: spi-daisy
+all: test0004
 
 daisy:
 	$(MAKE) -C daisy all
+	
+spitest:
+	$(MAKE) -C spitest all
 	
 driver:
 	$(MAKE) -C driver all
@@ -59,6 +62,7 @@ tests:
 
 clean:
 	$(MAKE) -C driver     clean
+	$(MAKE) -C spitest    clean
 	$(MAKE) -C spi-daisy  clean
 	$(MAKE) -C spi16      clean
 	$(MAKE) -C rfm22b     clean

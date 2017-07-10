@@ -234,14 +234,16 @@ void bcm2835_spi_transfernb(const volatile uint8_t* tbuf,
         while(((bcm2835_peri_read(paddr) & BCM2835_SPI0_CS_TXD)) &&
         		(tx_count < len))
         {
-           bcm2835_peri_write_nb(fifo, ((uint32_t)tbuf[tx_count]) << 24);
-           tx_count++;
+        	//printk(KERN_DEBUG DRV_NAME ": T=%08x\n", ((uint32_t)tbuf[tx_count]));
+			bcm2835_peri_write_nb(fifo, ((uint32_t)tbuf[tx_count]));
+			tx_count++;
         }
         /* Rx fifo not empty, so get the next received bytes */
         while(((bcm2835_peri_read(paddr) & BCM2835_SPI0_CS_RXD)) &&
         		(rx_count < len))
         {
            rbuf[rx_count] = bcm2835_peri_read_nb(fifo);
+           //printk(KERN_DEBUG DRV_NAME ": R=%08x\n", ((uint32_t)rbuf[rx_count]));
            rx_count++;
         }
     }

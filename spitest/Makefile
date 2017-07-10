@@ -15,19 +15,19 @@
 #     You should have received a copy of the GNU General Public License
 #     along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
 
-include ../../environment.mk
+include ../environment.mk
 
 # All Target
-all: $(CONFIGURATION)/test0004
+all: $(CONFIGURATION)/spitest
 
 # Tool invocations
-$(CONFIGURATION)/test0004: *.cpp
+$(CONFIGURATION)/spitest: *.c
 	@echo 'Building target: $@'
 ifeq ($(wildcard $(CONFIGURATION)),)
 	-@$(MKDIR) $(CONFIGURATION)
 endif
 	@echo 'Invoking: Cross GCC Compiler and Linker'
-	$(GXX) -std=c++11 -o $@ test0004.cpp
+	$(GCC) -o $@ spitest.c
 	@echo 'Finished building target: $@'
 	-@echo ' '
 

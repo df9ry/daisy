@@ -27,17 +27,15 @@ endif
 
 # Tool invocations
 
-$(CONFIGURATION)/daisy: daisy.cpp \
+$(CONFIGURATION)/daisy: daisy.cpp *.cpp *.h \
 	$(CONFIGURATION)/rfm22b.o \
-	$(CONFIGURATION)/utility.o \
-	$(CONFIGURATION)/bcm2835.o
+	$(CONFIGURATION)/utility.o
 	
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross GCC Compiler and Linker'
 	$(GXX) -pthread -std=c++11 -rdynamic -o $@ $(basename $(notdir $@)).cpp \
 		$(CONFIGURATION)/rfm22b.o \
-		$(CONFIGURATION)/utility.o \
-		$(CONFIGURATION)/bcm2835.o
+		$(CONFIGURATION)/utility.o
 	@echo 'Finished building target: $@'
 	-@echo ' '
 

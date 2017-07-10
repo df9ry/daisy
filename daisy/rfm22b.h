@@ -51,6 +51,12 @@ namespace RFM22B_NS {
 		// Destructor
 		~RFM22B();
 
+		// Open
+		bool open(const std::string& filename);
+
+		// Close
+		void close();
+
 		// Reset the device
 		void reset();
 
@@ -257,6 +263,10 @@ namespace RFM22B_NS {
 		void setFIFOThreshold(RFM22B_Register reg, uint8_t thresh);
 		void init(struct register_value rg_rv[]);
 
+		int                  spidev = -1;
+		uint8_t              spimode;
+		uint8_t              spibits;
+		uint32_t             spispeed;
 		std::mutex           transfer_lock;
 		std::vector<uint8_t> addr {};
 		bool                 debug = false;

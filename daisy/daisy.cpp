@@ -405,7 +405,8 @@ static void help(ostream &os, bool f_quiet) {
 	if (f_quiet)
 		return;
 
-	os << "Usage: daisy" << endl;
+	os << "Usage: daisy <spifile> [options]" << endl
+	   << "  options:" << endl;
 
 	int maxd = 0, maxo = 0;
 	for (command_map_iter iter = command_map.begin();
@@ -555,7 +556,11 @@ int main(int argc, char* argv[]) {
 			return EXIT_SUCCESS;
 		}
 		RFM22B chip;
-		for (int iarg = 1; iarg < argc; ++iarg) {
+		if (!chip.open(argv[1]))
+			throw daisy_exception(
+					"Unable to open file \"" + string(argv[1]) + "\"");
+
+		for (int iarg = 2; iarg < argc; ++iarg) {
 			string arg(argv[iarg]);
 			string cmd;
 			const char rgsep[] { '?', '=' };
@@ -578,7 +583,6 @@ int main(int argc, char* argv[]) {
 	}
 	catch (::daisy_exception &ex) {
 		cerr << "Error: " << ex.what() << endl;
-		help(cerr, false);
 	}
 	catch (std::exception &ex) {
 		cerr << "Error: " << ex.what() << endl;
