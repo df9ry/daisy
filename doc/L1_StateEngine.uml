@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uml:Model xmi:version="20131001" xmlns:xmi="http://www.omg.org/spec/XMI/20131001" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:uml="http://www.eclipse.org/uml2/5.0.0/UML" xmi:id="_8yM7EGZiEeeNb7QJvElRbw" name="L1_StateEngine">
+  <packageImport xmi:type="uml:PackageImport" xmi:id="_88-nsGZiEeeNb7QJvElRbw">
+    <importedPackage xmi:type="uml:Model" href="pathmap://UML_LIBRARIES/UMLPrimitiveTypes.library.uml#_0"/>
+  </packageImport>
+  <packagedElement xmi:type="uml:StateMachine" xmi:id="_8yi5UGZiEeeNb7QJvElRbw" name="L1_StateMachine">
+    <connectionPoint xmi:type="uml:Pseudostate" xmi:id="_JdH3EGZ6Eee6dfM0n9Lx_A" kind="entryPoint"/>
+    <connectionPoint xmi:type="uml:Pseudostate" xmi:id="_hTP-sGZ6Eee6dfM0n9Lx_A" kind="exitPoint"/>
+    <region xmi:type="uml:Region" xmi:id="_8yrcMGZiEeeNb7QJvElRbw" name="Region1">
+      <transition xmi:type="uml:Transition" xmi:id="_uBVAYGZlEeeNb7QJvElRbw" name="no_carrier_present" source="_hXjuYGZjEeeNb7QJvElRbw" target="_ltrIIGZlEeeNb7QJvElRbw"/>
+      <transition xmi:type="uml:Transition" xmi:id="_AAhJ0GZmEeeNb7QJvElRbw" name="carrier_present" source="_hXjuYGZjEeeNb7QJvElRbw" target="_11LpIGZjEeeNb7QJvElRbw"/>
+      <transition xmi:type="uml:Transition" xmi:id="_Z2f3EGZrEee6dfM0n9Lx_A" name="no_data_avail" source="_ltrIIGZlEeeNb7QJvElRbw" target="_Xc57wGZmEeeNb7QJvElRbw"/>
+      <transition xmi:type="uml:Transition" xmi:id="_wLY1cGZrEee6dfM0n9Lx_A" name="data_avail" source="_ltrIIGZlEeeNb7QJvElRbw" target="_Extn8GZmEeeNb7QJvElRbw"/>
+      <transition xmi:type="uml:Transition" xmi:id="_H-wkAGZsEee6dfM0n9Lx_A" name="intr_sync_detect" source="_11LpIGZjEeeNb7QJvElRbw" target="_AqMKMGZsEee6dfM0n9Lx_A"/>
+      <transition xmi:type="uml:Transition" xmi:id="_6wt_8GZsEee6dfM0n9Lx_A" name="intr_sync_detect" source="_AqMKMGZsEee6dfM0n9Lx_A" target="_AqMKMGZsEee6dfM0n9Lx_A"/>
+      <transition xmi:type="uml:Transition" xmi:id="_OlTvUGZuEee6dfM0n9Lx_A" name="intr_rx_fifo" source="_AqMKMGZsEee6dfM0n9Lx_A" target="_AqMKMGZsEee6dfM0n9Lx_A"/>
+      <transition xmi:type="uml:Transition" xmi:id="_8fw0UGZvEee6dfM0n9Lx_A" name="intr_valid_pkg" source="_AqMKMGZsEee6dfM0n9Lx_A" target="_hXjuYGZjEeeNb7QJvElRbw"/>
+      <transition xmi:type="uml:Transition" xmi:id="_raWWEGZwEee6dfM0n9Lx_A" name="error" source="_11LpIGZjEeeNb7QJvElRbw" target="_hXjuYGZjEeeNb7QJvElRbw"/>
+      <transition xmi:type="uml:Transition" xmi:id="_Rqpy0GZyEee6dfM0n9Lx_A" name="intr_tx_fifo" source="_Extn8GZmEeeNb7QJvElRbw" target="_Extn8GZmEeeNb7QJvElRbw"/>
+      <transition xmi:type="uml:Transition" xmi:id="_kBUoIGZyEee6dfM0n9Lx_A" name="error" source="_Extn8GZmEeeNb7QJvElRbw" target="_hXjuYGZjEeeNb7QJvElRbw"/>
+      <transition xmi:type="uml:Transition" xmi:id="_tLaHMGZ0Eee6dfM0n9Lx_A" name="error" source="_AqMKMGZsEee6dfM0n9Lx_A" target="_hXjuYGZjEeeNb7QJvElRbw"/>
+      <transition xmi:type="uml:Transition" xmi:id="_xx6tYGZ2Eee6dfM0n9Lx_A" name="intr_pkg_sent" source="_Extn8GZmEeeNb7QJvElRbw" target="_hXjuYGZjEeeNb7QJvElRbw"/>
+      <transition xmi:type="uml:Transition" xmi:id="_PemjQGZ4Eee6dfM0n9Lx_A" name="intr_data_carrier" source="_Xc57wGZmEeeNb7QJvElRbw" target="_hXjuYGZjEeeNb7QJvElRbw"/>
+      <transition xmi:type="uml:Transition" xmi:id="_GxS_cGZ5Eee6dfM0n9Lx_A" name="tx_data_avail" source="_Xc57wGZmEeeNb7QJvElRbw" target="_hXjuYGZjEeeNb7QJvElRbw"/>
+      <transition xmi:type="uml:Transition" xmi:id="_cU6R4GZ5Eee6dfM0n9Lx_A" name="error" source="_Xc57wGZmEeeNb7QJvElRbw" target="_hXjuYGZjEeeNb7QJvElRbw"/>
+      <transition xmi:type="uml:Transition" xmi:id="_OzrsEGZ6Eee6dfM0n9Lx_A" source="_JdH3EGZ6Eee6dfM0n9Lx_A" target="_hXjuYGZjEeeNb7QJvElRbw"/>
+      <transition xmi:type="uml:Transition" xmi:id="_kPg7gGZ6Eee6dfM0n9Lx_A" source="_Xc57wGZmEeeNb7QJvElRbw" target="_hTP-sGZ6Eee6dfM0n9Lx_A"/>
+      <subvertex xmi:type="uml:Pseudostate" xmi:id="_hXjuYGZjEeeNb7QJvElRbw" name="Data Carrier Present?" kind="choice"/>
+      <subvertex xmi:type="uml:State" xmi:id="_11LpIGZjEeeNb7QJvElRbw" name="HUNT"/>
+      <subvertex xmi:type="uml:Pseudostate" xmi:id="_ltrIIGZlEeeNb7QJvElRbw" name="TX Data Avail?" kind="choice"/>
+      <subvertex xmi:type="uml:State" xmi:id="_Extn8GZmEeeNb7QJvElRbw" name="TX"/>
+      <subvertex xmi:type="uml:State" xmi:id="_Xc57wGZmEeeNb7QJvElRbw" name="IDLE"/>
+      <subvertex xmi:type="uml:State" xmi:id="_AqMKMGZsEee6dfM0n9Lx_A" name="RX"/>
+    </region>
+  </packagedElement>
+  <profileApplication xmi:type="uml:ProfileApplication" xmi:id="_QvAyUGZkEeeNb7QJvElRbw">
+    <eAnnotations xmi:type="ecore:EAnnotation" xmi:id="_QvCAcGZkEeeNb7QJvElRbw" source="http://www.eclipse.org/uml2/2.0.0/UML">
+      <references xmi:type="ecore:EPackage" href="pathmap://PAPYRUS_ACTIONLANGUAGE_PROFILE/ActionLanguage-Profile.profile.uml#_Kv8EIKFXEeS_KNX0nfvIVQ"/>
+    </eAnnotations>
+    <appliedProfile xmi:type="uml:Profile" href="pathmap://PAPYRUS_ACTIONLANGUAGE_PROFILE/ActionLanguage-Profile.profile.uml#ActionLanguage"/>
+  </profileApplication>
+</uml:Model>
