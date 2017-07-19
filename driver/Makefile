@@ -23,8 +23,18 @@ all:
 ifeq ($(wildcard $(CONFIGURATION)),)
 	-@$(MKDIR) $(CONFIGURATION)
 endif
-	$(LN) ${CURDIR}/*.[hc] $(CONFIGURATION)/
-	$(LN) ${CURDIR}/Makefile_Template $(CONFIGURATION)/Makefile
+	$(LN) ${CURDIR}/*.[hc] \
+	      ${CURDIR}/$(CONFIGURATION)/
+	      
+	$(LN) ${CURDIR}/Makefile_Template \
+	      ${CURDIR}/$(CONFIGURATION)/Makefile
+	      
+	$(CP) ${CURDIR}/../spi-daisy/spi-daisy.h \
+	      ${CURDIR}/$(CONFIGURATION)/
+	      
+	$(CP) ${CURDIR}/../spi-daisy/$(CONFIGURATION)/Module.symvers \
+		  ${CURDIR}/$(CONFIGURATION)/
+		  
 	@echo 'Invoking: Cross GCC module build'
 	$(MAKE) ARCH=arm CROSS_COMPILE=$(TOOLSET_PREFIX) \
 		-C $(KERNEL_SRC) \

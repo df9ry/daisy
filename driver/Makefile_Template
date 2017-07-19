@@ -18,7 +18,4 @@
 obj-m      := daisy.o
 daisy-objs += utils.o
 daisy-objs += tx.o
-daisy-objs += bcm2835.o
-daisy-objs += fileio.o
-daisy-objs += initdata.o
 daisy-objs += main.o

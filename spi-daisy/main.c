@@ -18,9 +18,9 @@
 
 #include <linux/module.h>
 #include <linux/clk.h>
-#include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/of.h>
+#include <linux/platform_device.h>
 
 #include <linux/spi/spi.h>
 
@@ -30,93 +30,178 @@
 #define daisy_SPI_MODE_BITS	(SPI_CPOL | SPI_CPHA | SPI_CS_HIGH \
 				| SPI_NO_CS | SPI_3WIRE)
 
-#undef PREPARE_MESSAGE
-
 struct daisy_spi {
-	spinlock_t    transfer_lock;
-	struct clk   *clk;
-	uint32_t      spi_hz;
+	struct platform_device *pdev;
+	spinlock_t              transfer_lock;
+	struct clk             *clk;
+	uint32_t                spi_hz;
+	bool                    speed_lock;
 };
 
-#ifdef PREPARE_MESSAGE
-static int daisy_spi_prepare_message(struct spi_master *master,
-				       struct spi_message *msg)
-{
-	//struct spi_device *spi = msg->spi;
-	//struct bcm2835_spi *bs = spi_master_get_devdata(master);
+struct daisy_dev {
+	struct kobject         *kobj;
+	struct daisy_spi       *spi;
+	struct spi_device      *dev;
+	struct spi_master      *master;
+	uint16_t                slot;
+};
 
-	printk(KERN_DEBUG DRV_NAME ": Called spi_prepare_message()\n");
+static struct daisy_dev daisy_slots[N_SLOTS];
 
-	return 0;
-}
-#endif
-
-static void daisy_spi_handle_err(struct spi_master *master,
+static void daisy_spi_handle_err(struct spi_master  *master,
                                  struct spi_message *msg)
 {
 	printk(KERN_DEBUG DRV_NAME ": Called spi_handle_err()\n");
 }
 
+struct daisy_spi *daisy_get_controller(struct daisy_dev *dev)
+{
+	if ((dev == NULL) || (dev->master == NULL))
+		return NULL;
+	return spi_master_get_devdata(dev->master);
+}
+EXPORT_SYMBOL_GPL(daisy_get_controller);
+
+void daisy_lock_speed(struct daisy_spi *spi)
+{
+	if (spi)
+		spi->speed_lock = true;
+}
+EXPORT_SYMBOL_GPL(daisy_lock_speed);
+
+void daisy_unlock_speed(struct daisy_spi *spi)
+{
+	if (spi)
+		spi->speed_lock = false;
+}
+EXPORT_SYMBOL_GPL(daisy_unlock_speed);
+
+struct daisy_dev *daisy_open_device(uint16_t slot)
+{
+	struct daisy_dev *dd;
+
+	printk(KERN_DEBUG DRV_NAME ": Open handle for slot %d\n", slot);
+	if (slot >= N_SLOTS)
+		return NULL;
+	dd = &daisy_slots[slot];
+	if ((dd->dev == NULL) || (dd->kobj != NULL))
+		return NULL;
+	dd->kobj = kobject_get(&(dd->dev->dev.kobj));
+	return dd;
+}
+EXPORT_SYMBOL_GPL(daisy_open_device);
+
+void daisy_close_device(struct daisy_dev *dd)
+{
+	if ((dd != NULL) && (dd->kobj != NULL)) {
+		printk(KERN_DEBUG DRV_NAME ": Close handle for slot %d\n", dd->slot);
+		kobject_put(dd->kobj);
+		dd->kobj = NULL;
+	}
+}
+EXPORT_SYMBOL_GPL(daisy_close_device);
+
+void daisy_transfer(struct daisy_dev *dd,
+			const volatile uint8_t   *tx,
+				  volatile uint8_t   *rx,
+				  	  	   size_t     cb)
+{
+	struct daisy_spi *spi = dd->spi;
+	unsigned long flags;
+
+	spin_lock_irqsave(&spi->transfer_lock, flags);
+	bcm2835_spi_transfernb(tx, rx, cb);
+	spin_unlock_irqrestore(&spi->transfer_lock, flags);
+}
+EXPORT_SYMBOL_GPL(daisy_transfer);
+
+uint32_t daisy_set_speed(struct daisy_spi *spi, uint32_t spi_hz)
+{
+	uint32_t clk_hz, cdiv;
+	spi->spi_hz = spi_hz;
+	/* set clock */
+	clk_hz = clk_get_rate(spi->clk);
+	if (spi_hz >= clk_hz / 2) {
+		cdiv = 2; /* clk_hz/2 is the fastest we can go */
+	} else if (spi_hz) {
+		/* CDIV must be a multiple of two */
+		cdiv = DIV_ROUND_UP(clk_hz, spi_hz);
+		cdiv += (cdiv % 2);
+		if (cdiv >= 65536)
+			cdiv = 0; /* 0 is the slowest we can go */
+	} else {
+		cdiv = 0; /* 0 is the slowest we can go */
+	}
+	bcm2835_spi_setClockDivider(cdiv);
+	return cdiv ? (clk_hz / cdiv) : (clk_hz / 65536);
+}
+EXPORT_SYMBOL_GPL(daisy_set_speed);
+
 static int daisy_spi_transfer_one(
 					struct spi_master   *master,
-				    struct spi_device   *spi,
+				    struct spi_device   *dev,
 				    struct spi_transfer *tfr)
 {
-	struct daisy_spi *bs = spi_master_get_devdata(master);
-	uint32_t spi_hz = tfr->speed_hz;
-	/* Only set speed, if this time is different than last time */
-	if (spi_hz != bs->spi_hz) {
-		uint32_t clk_hz, cdiv, spi_used_hz;
-		bs->spi_hz = spi_hz;
-		/* set clock */
-		clk_hz = clk_get_rate(bs->clk);
-		if (spi_hz >= clk_hz / 2) {
-			cdiv = 2; /* clk_hz/2 is the fastest we can go */
-		} else if (spi_hz) {
-			/* CDIV must be a multiple of two */
-			cdiv = DIV_ROUND_UP(clk_hz, spi_hz);
-			cdiv += (cdiv % 2);
-			if (cdiv >= 65536)
-				cdiv = 0; /* 0 is the slowest we can go */
-		} else {
-			cdiv = 0; /* 0 is the slowest we can go */
+	struct daisy_spi *spi = spi_master_get_devdata(master);
+	if ((spi != NULL) && (!spi->speed_lock)) {
+		uint32_t spi_hz = tfr->speed_hz;
+
+		/* Only set speed, if this time is different than last time */
+		if (spi_hz != spi->spi_hz) {
+			uint32_t spi_used_hz = daisy_set_speed(spi, spi->spi_hz);
+			printk(KERN_DEBUG DRV_NAME ": SPI clock req: %d Hz, got %d Hz\n",
+					spi_hz, spi_used_hz);
 		}
-		bcm2835_spi_setClockDivider(cdiv);
-		spi_used_hz = cdiv ? (clk_hz / cdiv) : (clk_hz / 65536);
-		printk(KERN_DEBUG DRV_NAME ": SPI clock req: %d Hz, got %d Hz\n",
-				spi_hz, spi_used_hz);
 	}
 
-	spin_lock(&bs->transfer_lock);
-	bcm2835_spi_transfernb(tfr->tx_buf, tfr->rx_buf, tfr->len);
-	spin_unlock(&bs->transfer_lock);
+	if (dev->chip_select >= N_SLOTS) {
+		printk(KERN_ERR DRV_NAME ": Invalid CS: %d\n", (int)dev->chip_select);
+		return -E2BIG;
+	}
+
+	daisy_transfer(&daisy_slots[dev->chip_select],
+			tfr->tx_buf, tfr->rx_buf, tfr->len);
 
 	spi_finalize_current_transfer(master);
 	return 0;
 }
 
-static void daisy_spi_set_cs(struct spi_device *spi, bool gpio_level)
+static int daisy_spi_setup(struct spi_device *dev)
 {
-	printk(KERN_DEBUG DRV_NAME ": Called spi_set_cs()\n");
-}
+	struct daisy_dev *dd;
 
-static int daisy_spi_setup(struct spi_device *spi)
-{
-	printk(KERN_DEBUG DRV_NAME ": Called spi_setup()\n");
+	printk(KERN_DEBUG DRV_NAME
+			": Called spi_setup(cs=%d)\n", (int)dev->chip_select);
 	/*
 	 * sanity checking the native-chipselects
 	 */
-	if (spi->mode & SPI_NO_CS)
-		return 0;
-	if (spi->chip_select > 1) {
-		/* error in the case of native CS requested with CS > 1
-		 * officially there is a CS2, but it is not documented
-		 * which GPIO is connected with that...
-		 */
-		printk(KERN_INFO DRV_NAME
-				": Setup: only two native chip-selects are supported\n");
+	if (dev->mode & SPI_NO_CS) {
+		printk(KERN_ERR DRV_NAME
+				": Setup: SPI_NO_CS not supported\n");
 		return -EINVAL;
 	}
+	if (dev->chip_select >= N_SLOTS) {
+		printk(KERN_ERR DRV_NAME
+				": Setup: Only %i CS are allowed\n", N_SLOTS);
+		return -EINVAL;
+	}
+	if (dev->master == NULL) {
+		printk(KERN_ERR DRV_NAME
+				": Setup: CS %i is not attached\n", dev->chip_select);
+		return -EINVAL;
+	}
+	dd = &daisy_slots[dev->chip_select];
+	if (dd->dev != NULL) {
+		printk(KERN_ERR DRV_NAME
+				": Setup: CS %i is in use\n", dev->chip_select);
+		return -EINVAL;
+	}
+
+	dd->dev    = dev;
+	dd->kobj   = NULL;
+	dd->master = dev->master;
+	dd->slot   = dev->chip_select;
+	dd->spi    = spi_master_get_devdata(dev->master);
 
 	return 0;
 }
@@ -125,7 +210,7 @@ static int daisy_spi_probe(struct platform_device *pdev)
 {
 	struct spi_master  *master;
 	struct daisy_spi   *bs;
-	int err;
+	int                 err, i;
 
 	printk(KERN_DEBUG DRV_NAME ": Called spi_probe()\n");
 	master = spi_alloc_master(&pdev->dev, sizeof(*bs));
@@ -138,19 +223,16 @@ static int daisy_spi_probe(struct platform_device *pdev)
 
 	master->mode_bits          = daisy_SPI_MODE_BITS;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
-	master->num_chipselect     = 3;
+	master->num_chipselect     = N_SLOTS;
 	master->setup              = daisy_spi_setup;
-	master->set_cs             = daisy_spi_set_cs;
 	master->transfer_one       = daisy_spi_transfer_one;
 	master->handle_err         = daisy_spi_handle_err;
 	master->min_speed_hz       = MIN_SPEED_HZ;
 	master->max_speed_hz       = MAX_SPEED_HZ;
-#ifdef PREPARE_MESSAGE
-	master->prepare_message    = daisy_spi_prepare_message;
-#endif
 	master->dev.of_node        = pdev->dev.of_node;
 
 	bs = spi_master_get_devdata(master);
+	bs->pdev = pdev;
 	spin_lock_init(&bs->transfer_lock);
 
 	bs->clk = devm_clk_get(&pdev->dev, NULL);
@@ -160,13 +242,6 @@ static int daisy_spi_probe(struct platform_device *pdev)
 		goto out_master_put;
 	}
 	clk_prepare_enable(bs->clk);
-
-	//bs->irq = platform_get_irq(pdev, 0);
-	//if (bs->irq <= 0) {
-	//	dev_err(&pdev->dev, "could not get IRQ: %d\n", bs->irq);
-	//	err = bs->irq ? bs->irq : -ENODEV;
-	//	goto out_master_put;
-	//}
 
 	err = devm_spi_register_master(&pdev->dev, master);
 	if (err) {
@@ -194,18 +269,27 @@ out_clk_disable:
 	clk_disable_unprepare(bs->clk);
 out_master_put:
 	spi_master_put(master);
+	for (i = 0; i < N_SLOTS; ++i) {
+		daisy_close_device(&daisy_slots[i]);
+		daisy_slots[i].dev = NULL;
+	}
 	return err;
 }
-
 
 static int daisy_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct daisy_spi  *bs     = spi_master_get_devdata(master);
+	int                i;
 
 	printk(KERN_DEBUG DRV_NAME ": Called spi_remove\n");
 
 	clk_disable_unprepare(bs->clk);
+
+	for (i = 0; i < N_SLOTS; ++i) {
+		daisy_close_device(&daisy_slots[i]);
+		daisy_slots[i].dev = NULL;
+	}
 
 	bcm2835_spi_end();
 	bcm2835_release();

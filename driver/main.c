@@ -1,3 +1,4 @@
+
 /* Copyright 2017 Tania Hagn
  *
  * This file is part of Daisy.
@@ -23,12 +24,12 @@
 #include <linux/stat.h>
 #include <linux/slab.h>
 
+#include "spi-daisy.h"
 #include "daisy.h"
-#include "bcm2835.h"
-#include "initdata.h"
 
 MODULE_AUTHOR("Tania Hagn - DF9RY");
-MODULE_LICENSE("Dual BSD/GPL");
+//MODULE_LICENSE("Dual BSD/GPL");
+MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Driver for the Daisy interface");
 MODULE_VERSION("0.1.1");
 
@@ -42,8 +43,8 @@ int daisy_change_mtu(struct net_device *dev, int new_mtu);
 int daisy_tx(struct sk_buff *skb, struct net_device *dev);
 void daisy_tx_timeout (struct net_device *dev);
 
-static int daisy_open(struct net_device *dev);
-static int daisy_stop(struct net_device *dev);
+static int daisy_up(struct net_device *dev);
+static int daisy_down(struct net_device *dev);
 
 /*
  * Parameters.
@@ -61,8 +62,8 @@ static size_t                  n_roots = 0;
  * Private structure.
  */
 static const struct net_device_ops daisy_netdev_ops = {
-	.ndo_open            = daisy_open,
-	.ndo_stop            = daisy_stop,
+	.ndo_open            = daisy_up,
+	.ndo_stop            = daisy_down,
 	.ndo_start_xmit      = daisy_tx,
 	.ndo_do_ioctl        = daisy_ioctl,
 	.ndo_set_mac_address = daisy_set_mac_address,
@@ -133,25 +134,37 @@ static void daisy_init(struct net_device *dev)
 	printk(KERN_DEBUG "daisy: Net device has been setup\n");
 }
 
-static int daisy_open(struct net_device *dev)
+static int daisy_up(struct net_device *dev)
 {
-	//struct daisy_priv      *priv;
-	//struct root_descriptor *rd;
+	if (dev) {
+		struct daisy_priv *priv = netdev_priv(dev);
+		struct root_descriptor *root = priv ? priv->root : NULL;
+		struct daisy_dev *dd = root ? root->daisy_device : NULL;
+		struct daisy_spi *controller = daisy_get_controller(dd);
+		uint32_t speed;
 
-	printk(KERN_DEBUG "daisy: Open net device \"%s\"\n", dev->name);
-
-	netif_start_queue(dev);
+		printk(KERN_DEBUG "daisy: Net device up \"%s\"\n", dev->name);
+		daisy_lock_speed(controller);
+		speed = daisy_set_speed(controller, SPI_BUS_SPEED);
+		printk(KERN_DEBUG "daisy: SPI bus speed set to %d kHz\n",
+				speed / 1000);
+		netif_start_queue(dev);
+	}
 	return 0;
 }
 
-static int daisy_stop(struct net_device *dev)
+static int daisy_down(struct net_device *dev)
 {
-	//struct daisy_priv      *priv;
-	//struct root_descriptor *rd;
-
 	if (dev) {
-		printk(KERN_DEBUG "daisy: Stop net device \"%s\"\n", dev->name);
+		struct daisy_priv *priv = netdev_priv(dev);
+		struct root_descriptor *root = priv ? priv->root : NULL;
+		struct daisy_dev *dd = root ? root->daisy_device : NULL;
+		struct daisy_spi *controller = daisy_get_controller(dd);
+
+		printk(KERN_DEBUG "daisy: Net device down \"%s\"\n", dev->name);
+
 		netif_stop_queue(dev);
+		daisy_unlock_speed(controller);
 	}
 	return 0;
 }
@@ -167,31 +180,30 @@ static void daisy_cleanup(void)
 
 	printk(KERN_DEBUG "daisy: Cleanup start\n");
 	for (i = 0, rd = root; i < n_roots; ++i, ++rd) {
-		if (rd->daisy_dev) {
+		if (rd->net_device) {
 			printk(KERN_DEBUG "daisy: Close net device \"%s\"\n",
-					rd->daisy_dev->name);
-			daisy_stop(rd->daisy_dev);
-			unregister_netdev(rd->daisy_dev);
-			daisy_teardown_pool(rd->daisy_dev);
+					rd->net_device->name);
+			daisy_down(rd->net_device);
+			unregister_netdev(rd->net_device);
+			daisy_teardown_pool(rd->net_device);
 			printk(KERN_DEBUG "daisy: Free net device \"%s\"\n",
-					rd->daisy_dev->name);
-			free_netdev(rd->daisy_dev);
-			rd->daisy_dev = NULL;
+					rd->net_device->name);
+			free_netdev(rd->net_device);
+			rd->net_device = NULL;
+			daisy_close_device(rd->daisy_device);
+			rd->daisy_device = NULL;
 		}
 	} // end while //
 	printk(KERN_DEBUG "daisy: Free root array\n");
 	kfree(root);
 	root = NULL;
 	n_roots = 0;
-	bcm2835_spi_end();
-	bcm2835_release();
 	printk(KERN_DEBUG "daisy: Cleanup finished\n");
 }
 
-static int daisy_init_module(void)
+static int __init daisy_init_module(void)
 {
-	int erc;
-	int result, i;
+	int                     erc, result, i;
 	struct root_descriptor *pd;
 	struct daisy_priv      *priv;
 
@@ -204,52 +216,6 @@ static int daisy_init_module(void)
 
 	n_roots = 1; // For now, we have only one SPI device.
 
-	/* Initialize the BCM2835 */
-	erc = bcm2835_initialize();
-	if (erc) {
-		printk(KERN_ERR
-				"daisy: Unable to initialize BCM2835!\n");
-		goto out;
-	}
-
-	/* Start the SPI subsystem */
-	if (!bcm2835_spi_begin()) {
-		printk(KERN_ERR
-				"daisy: Unable to start SPI!\n");
-		goto out;
-	}
-
-	/* Increase the SPI bus speed */
-	bcm2835_spi_setClockDivider(SPI_CLOCK_DIVIDER);
-
-	/* Check if RFM22B is on board */
-	{
-		uint8_t tx[3] = { 0x00, 0x00, 0x00 };
-		uint8_t rx[3] = { 0x00, 0x00, 0x00 };
-		int i;
-
-		bcm2835_spi_transfernb(tx, rx, 3);
-		if (rx[1] != 8) {
-			printk(KERN_ERR
-					"daisy: RFM22B chip not present - read: %i!\n",
-					(int)rx[1]);
-			goto out;
-		}
-		printk(KERN_INFO
-				"daisy: Found RFM22B version %d.\n", (int)rx[2]);
-
-		// Issue a chip reset:
-		tx[0] = 0x87;
-		bcm2835_spi_transfernb(tx, rx, 2);
-		msleep(10); // Let the device time to settle up
-
-		// Setup the device with default data:
-		for (i = 0; init_data[i][0] != 0x00; ++i)
-			bcm2835_spi_transfernb(init_data[i], rx, 2);
-		msleep(10); // Let the device time to settle up
-	}
-
-
 	/* Allocate memory for the root array. */
 	if (!(root = kcalloc(sizeof(struct root_descriptor), n_roots, GFP_KERNEL)))
 	{
@@ -258,9 +224,17 @@ static int daisy_init_module(void)
 		erc = -ENOMEM;
 		goto out;
 	}
+
 	/* Open network devices */
 	for (i = 0, pd = root; i < n_roots; ++i, ++pd) {
-		if (!(pd->daisy_dev = alloc_netdev(
+		pd->daisy_device = daisy_open_device(i);
+		if (!pd->daisy_device) {
+			printk(KERN_ERR	"daisy: Unable to open SPI device %d\n", i);
+			erc = -ENODEV;
+			goto out;
+		}
+
+		if (!(pd->net_device = alloc_netdev(
 				sizeof(struct daisy_priv), "dsy%d",
 				NET_NAME_UNKNOWN, daisy_init)))
 		{
@@ -269,21 +243,21 @@ static int daisy_init_module(void)
 			goto out;
 		}
 
-		if ((result = register_netdev(pd->daisy_dev))) {
+		if ((result = register_netdev(pd->net_device))) {
 			printk(KERN_ERR
 					"daisy: Error %i registering network device \"%s\"\n",
-					result, pd->daisy_dev->name);
+					result, pd->net_device->name);
 			erc = -ENODEV;
 			goto out;
 		}
 		printk(KERN_DEBUG "daisy: Registered net device \"%s\"\n",
-				pd->daisy_dev->name);
+				pd->net_device->name);
 
-		priv = netdev_priv(pd->daisy_dev);
+		priv = netdev_priv(pd->net_device);
 		if (!priv) {
 			printk(KERN_ERR
 					"daisy: Unable to get private data for \"%s\"\n",
-					pd->daisy_dev->name);
+					pd->net_device->name);
 			erc = -ENOMEM;
 			goto out;
 		}
@@ -295,9 +269,6 @@ static int daisy_init_module(void)
 out:
 	if (erc)
 		daisy_cleanup();
-
-	bcm2835_release();
-
 	printk(KERN_DEBUG "daisy: Initialize finished with ERC=%i\n", erc);
 	return erc;
 }
