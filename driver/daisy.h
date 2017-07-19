@@ -22,6 +22,11 @@
 #include <linux/netdevice.h>
 
 /*
+ * Forward declaration of the daisy device handle.
+ */
+struct daisy_dev;
+
+/*
  * A structure representing an in-flight packet.
  */
 struct daisy_packet {
@@ -35,7 +40,8 @@ struct daisy_packet {
  * Top level data structure in this driver.
  */
 struct root_descriptor {
-	struct net_device *daisy_dev;
+	struct net_device *net_device;
+	struct daisy_dev  *daisy_device;
 };
 
 /*
@@ -55,13 +61,9 @@ struct daisy_priv {
 /*
  * Useful defaults:
  */
-#define DEFAULT_TIMEOUT    5   /* In jiffies              */
-#define SPI_CLOCK_DIVIDER 64   /* SPI communication speed */
-#define RFM22B_TYPE_ID     8   /* SPI chip id             */
-
-/*
- * Default pool size.
- */
-#define DEFAULT_POOL_SIZE 8
+#define DEFAULT_TIMEOUT         5   /* In jiffies               */
+#define RFM22B_TYPE_ID          8   /* SPI chip id              */
+#define DEFAULT_POOL_SIZE       8   /* Default buffer pool size */
+#define SPI_BUS_SPEED     5000000   /* Run with 5 MHz           */
 
 #endif /* _DAISY_H_ */

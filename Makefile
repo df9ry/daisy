@@ -19,7 +19,7 @@
 	driver spi-daisy spi16 rfm22b hello hellodrv spitest \
 	snull daisy_gui c2e tests test0004 clean kernel daisy kernel_clean
 
-all: test0004
+all: spi-daisy driver
 
 daisy:
 	$(MAKE) -C daisy all
