@@ -20,11 +20,10 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/sockios.h>
+#include <linux/ioctl.h>
+#include <linux/wireless.h>
 
 #include "daisy.h"
-
-/* IOCTL COMMANDS */
-#define IOCTL_TRANSFER_B (SIOCDEVPRIVATE + 0)
 
 /*
  * Configuration changes (passed on by ifconfig)
@@ -61,16 +60,37 @@ int daisy_set_mac_address(struct net_device *dev, void *addr)
 /*
  * Ioctl commands
  */
-int daisy_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+int daisy_ioctl(struct net_device *dev, struct ifreq *rq, uint32_t cmd)
 {
 	switch (cmd) {
-	case IOCTL_TRANSFER_B :
-		printk(KERN_DEBUG "IOCTL transfer byte\n");
-		rq->ifr_ifru.ifru_ivalue = -rq->ifr_ifru.ifru_ivalue;
-		break;
-	default:
-		printk(KERN_DEBUG "Undefined ioctl command 0x%x\n", cmd);
+	case SIOCGIWESSID :
+		printk(KERN_DEBUG "daisy: ioctl(SIOCGIWESSID) - ignored\n");
 		return -EOPNOTSUPP;
+	default:
+		printk(KERN_DEBUG "daisy: Undefined ioctl command 0x%08x\n", cmd);
+		{
+			const char *dir  = "";
+
+			switch (_IOC_DIR(cmd)) {
+			case _IOC_WRITE | _IOC_READ :
+				dir = "WR";
+				break;
+			case _IOC_READ :
+				dir = "R";
+				break;
+			case _IOC_WRITE :
+				dir = "W";
+				break;
+			} // end switch //
+			if (_IOC_SIZE(cmd) > 0)
+				printk(KERN_DEBUG "daisy: _IO%s('%c'(0x%02x),%d,%d);\n", dir,
+						_IOC_TYPE(cmd), _IOC_TYPE(cmd), _IOC_NR(cmd),
+						_IOC_SIZE(cmd));
+			else
+				printk(KERN_DEBUG "daisy: _IO%s('%c'(0x%02x),%d);\n", dir,
+						_IOC_TYPE(cmd), _IOC_TYPE(cmd), _IOC_NR(cmd));
+			return -EOPNOTSUPP;
+		}
 	} // end switch //
 	return 0;
 }
