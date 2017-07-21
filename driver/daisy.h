@@ -19,22 +19,16 @@
 #ifndef _DAISY_H_
 #define _DAISY_H_
 
+#include <linux/module.h>
 #include <linux/netdevice.h>
+#include <linux/workqueue.h>
 
 /*
  * Forward declaration of the daisy device handle.
  */
 struct daisy_dev;
-
-/*
- * A structure representing an in-flight packet.
- */
-struct daisy_packet {
-	struct daisy_packet *next;
-	struct net_device   *dev;
-	int	                 datalen;
-	u8                   data[ETH_DATA_LEN];
-};
+struct l2_queue;
+struct l1_queue;
 
 /*
  * Top level data structure in this driver.
@@ -48,22 +42,26 @@ struct root_descriptor {
  * Private data for our daisy device.
  */
 struct daisy_priv {
-	struct net_device_stats stats;
-	struct daisy_packet    *ppool;
-	struct daisy_packet    *rx_queue;  /* List of incoming packets */
-	int                     tx_packetlen;
-	u8                     *tx_packetdata;
-	struct sk_buff         *skb;
-	struct root_descriptor *root;
-	spinlock_t              lock;
+	struct l2_queue         *rx_l2_queue;
+	struct l2_queue         *tx_l2_queue;
+	struct workqueue_struct *l2_workqueue;
+	struct work_struct       l2_workstruct;
+	struct l1_queue         *rx_l1_queue;
+	struct l1_queue         *tx_l1_queue;
+	struct root_descriptor  *root;
+	spinlock_t               lock;
+	struct net_device_stats  stats;
 };
 
 /*
  * Useful defaults:
  */
-#define DEFAULT_TIMEOUT         5   /* In jiffies               */
-#define RFM22B_TYPE_ID          8   /* SPI chip id              */
-#define DEFAULT_POOL_SIZE       8   /* Default buffer pool size */
-#define SPI_BUS_SPEED     5000000   /* Run with 5 MHz           */
+#define DEFAULT_TIMEOUT            5   /* In jiffies               */
+#define RFM22B_TYPE_ID             8   /* SPI chip id              */
+#define DEFAULT_L1_TX_QUEUE_SIZE 128   /* Default L1 TX queue size */
+#define DEFAULT_L1_RX_QUEUE_SIZE 128   /* Default L1 RX queue size */
+#define DEFAULT_L2_TX_QUEUE_SIZE  16   /* Default L2 TX queue size */
+#define DEFAULT_L2_RX_QUEUE_SIZE  16   /* Default L2 RX queue size */
+#define SPI_BUS_SPEED        5000000   /* Run with 5 MHz           */
 
 #endif /* _DAISY_H_ */

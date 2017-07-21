@@ -25,10 +25,11 @@
 #include <linux/slab.h>
 
 #include "spi-daisy.h"
+#include "l2_queue.h"
+#include "l2.h"
 #include "daisy.h"
 
 MODULE_AUTHOR("Tania Hagn - DF9RY");
-//MODULE_LICENSE("Dual BSD/GPL");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Driver for the Daisy interface");
 MODULE_VERSION("0.1.1");
@@ -50,7 +51,6 @@ static int daisy_down(struct net_device *dev);
  * Parameters.
  */
 static int timeout   = DEFAULT_TIMEOUT;
-static int pool_size = DEFAULT_POOL_SIZE;
 
 /*
  * Definition of root array.
@@ -73,84 +73,55 @@ static const struct net_device_ops daisy_netdev_ops = {
 };
 
 /*
- * Set up a device's packet pool.
- */
-static void daisy_setup_pool(struct net_device *dev)
-{
-	struct daisy_priv   *priv = netdev_priv(dev);
-	struct daisy_packet *pkt;
-	int i;
-
-	priv->ppool = NULL;
-	for (i = 0; i < pool_size; i++) {
-		pkt = kmalloc (sizeof (struct daisy_packet), GFP_KERNEL);
-		if (pkt == NULL) {
-			printk(KERN_NOTICE
-					"daisy: Ran out of memory allocating packet pool\n");
-			return;
-		}
-		pkt->dev    = dev;
-		pkt->next   = priv->ppool;
-		priv->ppool = pkt;
-	}
-}
-
-/*
- * Remove pool.
- */
-static void daisy_teardown_pool(struct net_device *dev)
-{
-	struct daisy_priv   *priv = netdev_priv(dev);
-	struct daisy_packet *pkt;
-
-	while ((pkt = priv->ppool)) {
-		priv->ppool = pkt->next;
-		kfree (pkt);
-	}
-	while ((pkt = priv->rx_queue)) {
-		priv->rx_queue = pkt->next;
-		kfree (pkt);
-	}
-}
-
-/*
  * The init function (sometimes called probe).
  * It is invoked by register_netdev()
  */
 static void daisy_init(struct net_device *dev)
 {
-	struct daisy_priv *priv;
-
 	printk(KERN_DEBUG "daisy: Setup new net device\n");
-
 	ether_setup(dev);
 	dev->watchdog_timeo = timeout;
 	dev->netdev_ops     = &daisy_netdev_ops;
-	priv = netdev_priv(dev);
-	memset(priv, 0, sizeof(struct daisy_priv));
-	spin_lock_init(&priv->lock);
-	daisy_setup_pool(dev);
-
+	l2_init(dev);
 	printk(KERN_DEBUG "daisy: Net device has been setup\n");
 }
 
 static int daisy_up(struct net_device *dev)
 {
-	if (dev) {
-		struct daisy_priv *priv = netdev_priv(dev);
-		struct root_descriptor *root = priv ? priv->root : NULL;
-		struct daisy_dev *dd = root ? root->daisy_device : NULL;
-		struct daisy_spi *controller = daisy_get_controller(dd);
-		uint32_t speed;
+	int erc = 0;
+	struct daisy_priv *priv = netdev_priv(dev);
+	struct root_descriptor *root = priv ? priv->root : NULL;
+	struct daisy_dev *dd = root ? root->daisy_device : NULL;
+	struct daisy_spi *controller = daisy_get_controller(dd);
+	u32 speed;
+	int id;
 
-		printk(KERN_DEBUG "daisy: Net device up \"%s\"\n", dev->name);
-		daisy_lock_speed(controller);
-		speed = daisy_set_speed(controller, SPI_BUS_SPEED);
-		printk(KERN_DEBUG "daisy: SPI bus speed set to %d kHz\n",
-				speed / 1000);
-		netif_start_queue(dev);
+	printk(KERN_DEBUG "daisy: Net device up \"%s\"\n", dev->name);
+	daisy_lock_speed(controller);
+	speed = daisy_set_speed(controller, SPI_BUS_SPEED);
+	printk(KERN_DEBUG "daisy: SPI bus speed set to %d kHz\n",
+			speed / 1000);
+	// Test if there really is a RFM22B chip on the line:
+	id = daisy_get_register8(root->daisy_device, 0);
+	if (id != RFM22B_TYPE_ID) {
+		printk(KERN_ERR
+				"daisy: RFM22B chip not detected (id=0x%02x)\n", id);
+		erc = -ENODEV;
+	} else {
+		printk(KERN_DEBUG "daisy: Found RFM22B version %d\n",
+				(int)daisy_get_register8(root->daisy_device, 1));
 	}
-	return 0;
+	if (erc == 0) {
+		// Init buffers:
+		erc = l2_up(dev);
+		if (erc == 0) {
+			// Start IO:
+			netif_start_queue(dev);
+			// Start processes:
+			l2_pump(dev);
+		}
+	}
+	return erc;
 }
 
 static int daisy_down(struct net_device *dev)
@@ -162,9 +133,9 @@ static int daisy_down(struct net_device *dev)
 		struct daisy_spi *controller = daisy_get_controller(dd);
 
 		printk(KERN_DEBUG "daisy: Net device down \"%s\"\n", dev->name);
-
 		netif_stop_queue(dev);
 		daisy_unlock_speed(controller);
+		l2_down(dev);
 	}
 	return 0;
 }
@@ -185,13 +156,13 @@ static void daisy_cleanup(void)
 					rd->net_device->name);
 			daisy_down(rd->net_device);
 			unregister_netdev(rd->net_device);
-			daisy_teardown_pool(rd->net_device);
 			printk(KERN_DEBUG "daisy: Free net device \"%s\"\n",
 					rd->net_device->name);
 			free_netdev(rd->net_device);
 			rd->net_device = NULL;
 			daisy_close_device(rd->daisy_device);
 			rd->daisy_device = NULL;
+			l2_term(rd->net_device);
 		}
 	} // end while //
 	printk(KERN_DEBUG "daisy: Free root array\n");

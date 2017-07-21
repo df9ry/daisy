@@ -17,43 +17,44 @@
  */
 
 #include <linux/module.h>
-#include <linux/string.h>
-#include <linux/errno.h>
-#include <linux/ip.h>
 
+#include "l1.h"
+#include "l1_queue.h"
 #include "daisy.h"
-#include "l2.h"
-#include "l2_queue.h"
 
-/*
- * Transmit a packet (called by the kernel)
- */
-int daisy_tx(struct sk_buff *skb, struct net_device *dev)
-{
+int l1_up(struct net_device *dev) {
 	struct daisy_priv *priv = netdev_priv(dev);
-	struct l2_entry   *e    = l2_entry_new(priv->tx_l2_queue);
+	int erc = -ENOMEM;
 
-	if (!e) {
-		printk(KERN_DEBUG "daisy: Unable to get TX entry\n");
-		netif_stop_queue(dev);
-		return -EAGAIN;
-	}
-	printk(KERN_DEBUG "daisy: L2 enqueue TX %d octets\n", skb->len);
-	e->skb = skb;
-	l2_entry_put(e);
-	l2_pump(dev);
-	if (!l2_entry_can_new(priv->tx_l2_queue))
-		 netif_stop_queue(dev);
-	return 0;
+	priv->rx_l1_queue = l1_queue_new(DEFAULT_L1_RX_QUEUE_SIZE);
+	if (!priv->rx_l1_queue)
+		goto out;
+
+	priv->tx_l1_queue = l1_queue_new(DEFAULT_L1_TX_QUEUE_SIZE);
+	if (!priv->tx_l1_queue)
+		goto out_tx_l1;
+
+	erc = 0;
+	goto out;
+
+out_tx_l1:
+	l1_queue_del(priv->rx_l1_queue);
+	priv->rx_l1_queue = NULL;
+out:
+	return erc;
 }
 
-/*
- * Deal with a transmit timeout.
- */
-void daisy_tx_timeout (struct net_device *dev)
-{
-	printk(KERN_DEBUG "daisy: TX timeout at %ld\n", jiffies);
-	l2_pump(dev);
-	netif_wake_queue(dev);
-	return;
+void l1_down(struct net_device *dev) {
+	if (dev) {
+		struct daisy_priv *priv = netdev_priv(dev);
+
+		l1_queue_del(priv->rx_l1_queue);
+		priv->rx_l1_queue = NULL;
+		l1_queue_del(priv->tx_l1_queue);
+		priv->tx_l1_queue = NULL;
+	}
+}
+
+void l1_pump(struct net_device *dev) {
+
 }

@@ -17,43 +17,46 @@
  */
 
 #include <linux/module.h>
-#include <linux/string.h>
-#include <linux/errno.h>
 #include <linux/ip.h>
 
-#include "daisy.h"
-#include "l2.h"
 #include "l2_queue.h"
 
-/*
- * Transmit a packet (called by the kernel)
- */
-int daisy_tx(struct sk_buff *skb, struct net_device *dev)
-{
-	struct daisy_priv *priv = netdev_priv(dev);
-	struct l2_entry   *e    = l2_entry_new(priv->tx_l2_queue);
+struct l2_queue *l2_queue_new(size_t size) {
+	int    i;
+	struct l2_queue *q = kmalloc(
+			sizeof(struct l2_queue) + sizeof(struct l2_entry) * size,
+			GFP_KERNEL
+	);
 
-	if (!e) {
-		printk(KERN_DEBUG "daisy: Unable to get TX entry\n");
-		netif_stop_queue(dev);
-		return -EAGAIN;
+	if (!q) {
+		printk(KERN_ERR "daisy: L2: Unable to alloc l2_queue()\n");
+		return NULL;
 	}
-	printk(KERN_DEBUG "daisy: L2 enqueue TX %d octets\n", skb->len);
-	e->skb = skb;
-	l2_entry_put(e);
-	l2_pump(dev);
-	if (!l2_entry_can_new(priv->tx_l2_queue))
-		 netif_stop_queue(dev);
-	return 0;
+
+	INIT_LIST_HEAD(&q->free);
+	INIT_LIST_HEAD(&q->fifo);
+	spin_lock_init(&q->lock);
+	for (i = 0; i < size; i++) {
+		INIT_LIST_HEAD(&q->data[i].list);
+		q->data[i].queue = q;
+		q->data[i].skb = NULL;
+	} //end for //
+
+	return q;
 }
 
-/*
- * Deal with a transmit timeout.
- */
-void daisy_tx_timeout (struct net_device *dev)
-{
-	printk(KERN_DEBUG "daisy: TX timeout at %ld\n", jiffies);
-	l2_pump(dev);
-	netif_wake_queue(dev);
-	return;
+void l2_queue_del(struct l2_queue *q) {
+	struct list_head *_e;
+	struct l2_entry  *e;
+
+	if (!q)
+		return;
+	while (!list_empty(&q->fifo)) {
+		_e = q->fifo.next;
+		e = list_entry(_e, struct l2_entry, list);
+		if (e->skb)
+			dev_kfree_skb(e->skb);
+		list_del(_e);
+	} // end while //
+	kfree(q);
 }
