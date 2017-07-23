@@ -59,7 +59,11 @@ void tx_queue_del(struct tx_queue *q) {
 		if (!e)
 			break;
 		cancel_work(&e->tx_work);
-		e->andthen(-EINTR, e->user_data);
+		e->erc = -EINTR;
+		if (e->andthen)
+			e->andthen(e->erc, e->user_data);
+		else
+			complete((struct completion *)e->user_data);
 	} // end while //
 
 	kfree(q);

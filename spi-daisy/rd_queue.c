@@ -56,8 +56,12 @@ void rd_queue_del(struct rd_queue *q) {
 		struct rd_entry *e = rd_entry_get(q);
 		if (!e)
 			break;
-		cancel_work(&e->rd_work),
-		e->andthen(-EINTR, e->user_data);
+		cancel_work(&e->rd_work);
+		e->cb = -EINTR;
+		if (e->andthen)
+			e->andthen(e->cb, e->user_data);
+		else
+			complete((struct completion *)e->user_data);
 	} // end while //
 
 	kfree(q);
