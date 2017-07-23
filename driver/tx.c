@@ -54,6 +54,5 @@ void daisy_tx_timeout (struct net_device *dev)
 {
 	printk(KERN_DEBUG "daisy: TX timeout at %ld\n", jiffies);
 	l2_pump(dev);
-	netif_wake_queue(dev);
 	return;
 }

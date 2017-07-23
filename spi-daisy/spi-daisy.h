@@ -23,17 +23,34 @@
 
 #define DRV_NAME	"spi-daisy"
 
-#define MIN_SPEED_HZ   50000
-#define MAX_SPEED_HZ 5000000
-#define N_SLOTS            2
+#define MIN_SPEED_HZ       50000
+#define MAX_SPEED_HZ     5000000
+#define N_SLOTS                2
+#define MAX_PKG_LEN          256
+
+#define DEFAULT_RX_QUEUE_SIZE 64
+#define DEFAULT_TX_QUEUE_SIZE 64
+#define DEFAULT_RD_QUEUE_SIZE  2
+#define DEFAULT_PUMP_INTERVAL 10
 
 struct daisy_dev;
 struct daisy_spi;
 
 /**
  * Open a daisy device. Use daisy_close_handle() to release the device.
+ * @param slot SPI slot (chip select line) of the SPI device.
  */
 extern struct daisy_dev *daisy_open_device(uint16_t slot);
+
+/**
+ * Common utility for SPI IO.
+ * @dd Daisy device for the transfer.
+ * @tx SPI transmit buffer.
+ * @rx SPI receive buffer.
+ * @cb Size of tx and rx buffer.
+ */
+extern void daisy_transfer(struct daisy_dev *dd, const volatile uint8_t *tx,
+						   volatile uint8_t *rx, size_t cb);
 
 /**
  * Close a daisy device previously opened with daisy_open_device().
@@ -41,15 +58,61 @@ extern struct daisy_dev *daisy_open_device(uint16_t slot);
 extern void daisy_close_device(struct daisy_dev *bs);
 
 /**
- * This is called by other drivers that need to bypass the SPI subsystem.
- * In daisy it is used by the network driver from within the interrupt handler.
- * Can be called from contexts that cannot sleep. Multithreading is supported
- * by the spinlock in the daisy_spi struct.
+ * Asynchronous read from the daisy device.
+ * @param dd         Daisy device to read from.
+ * @param pb         Pointer to a suitable receive buffer.
+ * @param cb         Size of the receive buffer.
+ * @param user_data  Arbitrary pointer that is returned by the andthen
+ *                   function.
+ * @param andthen    Pointer to a function that shall be called when the
+ *                   read completes. This function will get the actual
+ *                   number read or an negative error_code and the user_data
+ *                   pointer.
+ * @return           0 when OK or negative error code in the case of failure.
  */
-extern void daisy_transfer(struct daisy_dev  *dd,
-					  const volatile uint8_t *tx,
-							volatile uint8_t *rx,
-							size_t            cb);
+extern int daisy_read_async(struct daisy_dev *dd, uint8_t *pb, size_t cb,
+							void *user_data,
+							void (*andthen)(int cb_read, void *user_data));
+
+/**
+ * Synchronous read from the daisy device.
+ * @param dd         Daisy device to read from.
+ * @param pb         Pointer to a suitable receive buffer.
+ * @param cb         Size of the receive buffer.
+ * @return           Number of bytes read, or negative error code on error.
+ */
+extern int daisy_read(struct daisy_dev *dd, uint8_t *pb, size_t cb);
+
+/**
+ * Asynchronous write to the daisy device.
+ * @param dd         Daisy device to write to.
+ * @param pb         Pointer to the data to write.
+ * @param user_data  Arbitrary pointer that is returned by the andthen
+ *                   function.
+ * @param priority   When set send messages before messages sent without
+ *                   priority.
+ * @param andthen    Pointer to a function that shall be called when the
+ *                   write completes. This function will get the actual
+ *                   number written or an negative error_code and the user_data
+ *                   pointer.
+ * @return           0 when OK or negative error code in the case of failure.
+ */
+extern int daisy_write_async(struct daisy_dev *dd, uint8_t *pb, size_t cb,
+							 void *user_data, bool priority,
+							 void (*andthen)(int cb_wrote, void *user_data));
+
+/**
+ * Synchronized write the daisy device.
+ * @param dd         Daisy device to write to.
+ * @param pb         Pointer to the data to write.
+ * @param cb         Size of the data to write.
+ * @param priority   When set send messages before messages sent without
+ *                   priority.
+ * @return           Number of bytes written, -EAGAIN when no write buffer
+ *                   is available or another negative error code on error.
+ */
+extern int daisy_write(struct daisy_dev *dd, uint8_t *pb, size_t cb,
+					   bool priority);
 
 /**
  * Get the controller for a daisy device.
