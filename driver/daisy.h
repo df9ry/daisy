@@ -42,15 +42,9 @@ struct root_descriptor {
  * Private data for our daisy device.
  */
 struct daisy_priv {
-	struct l2_queue         *rx_l2_queue;
-	struct l2_queue         *tx_l2_queue;
-	struct workqueue_struct *l2_workqueue;
-	struct work_struct       l2_workstruct;
-	struct l1_queue         *rx_l1_queue;
-	struct l1_queue         *tx_l1_queue;
 	struct root_descriptor  *root;
-	spinlock_t               lock;
 	struct net_device_stats  stats;
+	spinlock_t               lock;
 };
 
 /*

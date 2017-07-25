@@ -25,8 +25,6 @@
 #include <linux/slab.h>
 
 #include "spi-daisy.h"
-#include "l2_queue.h"
-#include "l2.h"
 #include "daisy.h"
 
 MODULE_AUTHOR("Tania Hagn - DF9RY");
@@ -82,7 +80,6 @@ static void daisy_init(struct net_device *dev)
 	ether_setup(dev);
 	dev->watchdog_timeo = timeout;
 	dev->netdev_ops     = &daisy_netdev_ops;
-	l2_init(dev);
 	printk(KERN_DEBUG "daisy: Net device has been setup\n");
 }
 
@@ -113,12 +110,9 @@ static int daisy_up(struct net_device *dev)
 	}
 	if (erc == 0) {
 		// Init buffers:
-		erc = l2_up(dev);
 		if (erc == 0) {
 			// Start IO:
 			netif_start_queue(dev);
-			// Start processes:
-			l2_pump(dev);
 		}
 	}
 	return erc;
@@ -135,7 +129,6 @@ static int daisy_down(struct net_device *dev)
 		printk(KERN_DEBUG "daisy: Net device down \"%s\"\n", dev->name);
 		netif_stop_queue(dev);
 		daisy_unlock_speed(controller);
-		l2_down(dev);
 	}
 	return 0;
 }
@@ -162,7 +155,6 @@ static void daisy_cleanup(void)
 			rd->net_device = NULL;
 			daisy_close_device(rd->daisy_device);
 			rd->daisy_device = NULL;
-			l2_term(rd->net_device);
 		}
 	} // end while //
 	printk(KERN_DEBUG "daisy: Free root array\n");

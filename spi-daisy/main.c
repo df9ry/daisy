@@ -25,9 +25,9 @@
 #include <linux/spi/spi.h>
 
 #include "spi-daisy.h"
-#include "bcm2835.h"
-#include "rx_queue.h"
 #include "tx_queue.h"
+#include "rx_queue.h"
+#include "bcm2835.h"
 
 #define daisy_SPI_MODE_BITS	(SPI_CPOL | SPI_CPHA | SPI_CS_HIGH \
 				| SPI_NO_CS | SPI_3WIRE)
@@ -45,9 +45,9 @@ struct daisy_dev {
 	struct daisy_spi        *spi;
 	struct spi_device       *dev;
 	struct spi_master       *master;
-	uint16_t                 slot;
 	struct rx_queue         *rx_queue;
 	struct tx_queue         *tx_queue;
+	uint16_t                 slot;
 };
 
 static struct daisy_dev daisy_slots[N_SLOTS];
@@ -91,6 +91,21 @@ int daisy_write(struct daisy_dev *dd, uint8_t *pb, size_t cb, bool priority)
 	return cb;
 }
 EXPORT_SYMBOL_GPL(daisy_write);
+
+int daisy_try_write(struct daisy_dev *dd, uint8_t *pb, size_t cb, bool priority)
+{
+	struct tx_entry   *e;
+
+	if (cb > MAX_PKG_LEN)
+		return -E2BIG;
+	e = tx_entry_try_new(dd->tx_queue);
+	if (!e)
+		return -ERESTARTSYS;
+	memcpy(&e->pkg[1], pb, cb);
+	tx_entry_put(e, priority);
+	return cb;
+}
+EXPORT_SYMBOL_GPL(daisy_try_write);
 
 struct daisy_spi *daisy_get_controller(struct daisy_dev *dev)
 {

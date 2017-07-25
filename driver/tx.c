@@ -22,8 +22,7 @@
 #include <linux/ip.h>
 
 #include "daisy.h"
-#include "l2.h"
-#include "l2_queue.h"
+#include "spi-daisy.h"
 
 /*
  * Transmit a packet (called by the kernel)
@@ -31,19 +30,16 @@
 int daisy_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct daisy_priv *priv = netdev_priv(dev);
-	struct l2_entry   *e    = l2_entry_new(priv->tx_l2_queue);
-
-	if (!e) {
-		printk(KERN_DEBUG "daisy: Unable to get TX entry\n");
-		netif_stop_queue(dev);
-		return -EAGAIN;
-	}
-	printk(KERN_DEBUG "daisy: L2 enqueue TX %d octets\n", skb->len);
-	e->skb = skb;
-	l2_entry_put(e);
-	l2_pump(dev);
-	if (!l2_entry_can_new(priv->tx_l2_queue))
+	int erc = daisy_try_write(priv->root->daisy_device, skb->data, skb->len, 0);
+	if (erc < 0) {
+		printk(KERN_DEBUG "daisy: TX %d octets failed with erc %d\n",
+				skb->len, erc);
 		 netif_stop_queue(dev);
+		 return erc;
+	}
+	printk(KERN_DEBUG "daisy: TX %d octets\n", skb->len);
+	priv->stats.tx_packets ++;
+	priv->stats.tx_bytes += skb->len;
 	return 0;
 }
 
@@ -53,6 +49,4 @@ int daisy_tx(struct sk_buff *skb, struct net_device *dev)
 void daisy_tx_timeout (struct net_device *dev)
 {
 	printk(KERN_DEBUG "daisy: TX timeout at %ld\n", jiffies);
-	l2_pump(dev);
-	return;
 }

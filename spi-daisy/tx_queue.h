@@ -93,6 +93,28 @@ static inline struct tx_entry *tx_entry_new(struct tx_queue *q) {
 }
 
 /**
+ * Alloc a new tx_entry to later put to the tx_queue. Do never try to
+ * delete this tx_entry. Use tx_entry_put or tx_entry_del() to return
+ * this tx_entry to the tx_queue.
+ * @param q Pointer to the tx_queue.
+ * @return Pointer to the new tx_entry.
+ * @error  return NULL, if no more tx_entry is available.
+ */
+static inline struct tx_entry *tx_entry_try_new(struct tx_queue *q) {
+	struct tx_entry  *e = NULL;
+	unsigned long     flags;
+
+	spin_lock_irqsave(&q->lock, flags);
+	/**/ if (!list_empty(&q->free)) {
+	/**/ 	struct list_head *_e = q->free.next;
+	/**/ 	e = list_entry(_e, struct tx_entry, list);
+	/**/ 	list_del_init(_e);
+	/**/ }
+	spin_unlock_irqrestore(&q->lock, flags);
+	return e;
+}
+
+/**
  * Return tx_entry to the tx_queue when it is no longer of use, so that it can
  * be reused later.
  * @param e Pointer to the tx_entry to return.

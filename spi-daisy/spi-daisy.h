@@ -72,11 +72,23 @@ extern int daisy_read(struct daisy_dev *dd, uint8_t *pb, size_t cb);
  * @param cb         Size of the data to write.
  * @param priority   When set send messages before messages sent without
  *                   priority.
- * @return           Number of bytes written, -EAGAIN when no write buffer
- *                   is available or another negative error code on error.
+ * @return           Number of bytes written or a negative error code on error.
  */
 extern int daisy_write(struct daisy_dev *dd, uint8_t *pb, size_t cb,
 					   bool priority);
+
+/**
+ * Try write the daisy device.
+ * @param dd         Daisy device to write to.
+ * @param pb         Pointer to the data to write.
+ * @param cb         Size of the data to write.
+ * @param priority   When set send messages before messages sent without
+ *                   priority.
+ * @return           Number of bytes written, -EAGAIN when no write buffer
+ *                   is available or another negative error code on error.
+ */
+extern int daisy_try_write(struct daisy_dev *dd, uint8_t *pb, size_t cb,
+					       bool priority);
 
 /**
  * Get the controller for a daisy device.
