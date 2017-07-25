@@ -92,6 +92,12 @@ int daisy_write(struct daisy_dev *dd, uint8_t *pb, size_t cb, bool priority)
 }
 EXPORT_SYMBOL_GPL(daisy_write);
 
+bool daisy_can_write(struct daisy_dev *dd)
+{
+	return !list_empty(&dd->tx_queue->free);
+}
+EXPORT_SYMBOL_GPL(daisy_can_write);
+
 int daisy_try_write(struct daisy_dev *dd, uint8_t *pb, size_t cb, bool priority)
 {
 	struct tx_entry   *e;
@@ -106,6 +112,13 @@ int daisy_try_write(struct daisy_dev *dd, uint8_t *pb, size_t cb, bool priority)
 	return cb;
 }
 EXPORT_SYMBOL_GPL(daisy_try_write);
+
+void daisy_interrupt_read(struct daisy_dev *dd)
+{
+	if (dd && dd->rx_queue)
+		up(&dd->rx_queue->sem);
+}
+EXPORT_SYMBOL_GPL(daisy_interrupt_read);
 
 struct daisy_spi *daisy_get_controller(struct daisy_dev *dev)
 {

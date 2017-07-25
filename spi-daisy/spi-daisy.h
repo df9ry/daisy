@@ -78,6 +78,13 @@ extern int daisy_write(struct daisy_dev *dd, uint8_t *pb, size_t cb,
 					   bool priority);
 
 /**
+ * Check if a subsequent write would be successful.
+ * @param dd         Daisy device to check.
+ * @return           Value != 0, if a write would not block.
+ */
+extern bool daisy_can_write(struct daisy_dev *dd);
+
+/**
  * Try write the daisy device.
  * @param dd         Daisy device to write to.
  * @param pb         Pointer to the data to write.
@@ -89,6 +96,12 @@ extern int daisy_write(struct daisy_dev *dd, uint8_t *pb, size_t cb,
  */
 extern int daisy_try_write(struct daisy_dev *dd, uint8_t *pb, size_t cb,
 					       bool priority);
+
+/**
+ * Interrupt a pending read.
+ * @param dd         Daisy device to interrupt.
+ */
+extern void daisy_interrupt_read(struct daisy_dev *dd);
 
 /**
  * Get the controller for a daisy device.

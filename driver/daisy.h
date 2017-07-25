@@ -22,6 +22,8 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/workqueue.h>
+#include <linux/completion.h>
+#include <linux/timer.h>
 
 /*
  * Forward declaration of the daisy device handle.
@@ -35,7 +37,6 @@ struct l1_queue;
  */
 struct root_descriptor {
 	struct net_device *net_device;
-	struct daisy_dev  *daisy_device;
 };
 
 /*
@@ -43,19 +44,21 @@ struct root_descriptor {
  */
 struct daisy_priv {
 	struct root_descriptor  *root;
+	size_t                   slot;
+	struct daisy_dev        *daisy_device;
 	struct net_device_stats  stats;
 	spinlock_t               lock;
+	struct workqueue_struct *workqueue;
+	struct work_struct       work;
+	struct completion       *completion;
+	struct timer_list        timer;
 };
 
 /*
  * Useful defaults:
  */
-#define DEFAULT_TIMEOUT            5   /* In jiffies               */
+#define DEFAULT_TIMEOUT           10   /* In jiffies               */
 #define RFM22B_TYPE_ID             8   /* SPI chip id              */
-#define DEFAULT_L1_TX_QUEUE_SIZE 128   /* Default L1 TX queue size */
-#define DEFAULT_L1_RX_QUEUE_SIZE 128   /* Default L1 RX queue size */
-#define DEFAULT_L2_TX_QUEUE_SIZE  16   /* Default L2 TX queue size */
-#define DEFAULT_L2_RX_QUEUE_SIZE  16   /* Default L2 RX queue size */
 #define SPI_BUS_SPEED        5000000   /* Run with 5 MHz           */
 
 #endif /* _DAISY_H_ */

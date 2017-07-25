@@ -23,6 +23,7 @@
 #include <linux/errno.h>
 #include <linux/stat.h>
 #include <linux/slab.h>
+#include <linux/semaphore.h>
 
 #include "spi-daisy.h"
 #include "daisy.h"
@@ -41,6 +42,7 @@ struct net_device_stats *daisy_stats(struct net_device *dev);
 int daisy_change_mtu(struct net_device *dev, int new_mtu);
 int daisy_tx(struct sk_buff *skb, struct net_device *dev);
 void daisy_tx_timeout (struct net_device *dev);
+void daisy_rx(struct work_struct *ws);
 
 static int daisy_up(struct net_device *dev);
 static int daisy_down(struct net_device *dev);
@@ -87,34 +89,74 @@ static int daisy_up(struct net_device *dev)
 {
 	int erc = 0;
 	struct daisy_priv *priv = netdev_priv(dev);
-	struct root_descriptor *root = priv ? priv->root : NULL;
-	struct daisy_dev *dd = root ? root->daisy_device : NULL;
-	struct daisy_spi *controller = daisy_get_controller(dd);
+	struct daisy_spi  *daisy_spi;
 	u32 speed;
 	int id;
 
 	printk(KERN_DEBUG "daisy: Net device up \"%s\"\n", dev->name);
-	daisy_lock_speed(controller);
-	speed = daisy_set_speed(controller, SPI_BUS_SPEED);
+	priv->completion = NULL;
+	init_timer(&priv->timer);
+
+	// Open daisy device:
+	priv->daisy_device = daisy_open_device(priv->slot);
+	if (!priv->daisy_device) {
+		printk(KERN_ERR	"daisy: Unable to open daisy device %d\n", priv->slot);
+		erc = -ENODEV;
+		goto out_exit;
+	}
+
+	// Lock and set SPI bus speed:
+	daisy_spi = daisy_get_controller(priv->daisy_device);
+	if (!daisy_spi) {
+		printk(KERN_ERR
+				"daisy: Unable to get controller for daisy device %d\n",
+				priv->slot);
+		erc = -ENODEV;
+		goto out_close_device;
+	}
+	daisy_lock_speed(daisy_spi);
+	speed = daisy_set_speed(daisy_spi, SPI_BUS_SPEED);
 	printk(KERN_DEBUG "daisy: SPI bus speed set to %d kHz\n",
 			speed / 1000);
+
 	// Test if there really is a RFM22B chip on the line:
-	id = daisy_get_register8(root->daisy_device, 0);
+	id = daisy_get_register8(priv->daisy_device, 0);
 	if (id != RFM22B_TYPE_ID) {
 		printk(KERN_ERR
 				"daisy: RFM22B chip not detected (id=0x%02x)\n", id);
 		erc = -ENODEV;
-	} else {
-		printk(KERN_DEBUG "daisy: Found RFM22B version %d\n",
-				(int)daisy_get_register8(root->daisy_device, 1));
+		goto out_unlock_speed;
 	}
-	if (erc == 0) {
-		// Init buffers:
-		if (erc == 0) {
-			// Start IO:
-			netif_start_queue(dev);
-		}
+	printk(KERN_DEBUG "daisy: Found RFM22B version %d\n",
+			(int)daisy_get_register8(priv->daisy_device, 1));
+
+	// Allocate workqueue:
+	priv->workqueue = create_singlethread_workqueue(dev->name);
+	if (!priv->workqueue) {
+		printk(KERN_ERR
+				"daisy: Unable to create workqueue %s\n", dev->name);
+		erc = -ENOMEM;
+		goto out_close_device;
 	}
+
+	// Init the worker:
+	INIT_WORK(&priv->work, daisy_rx);
+
+	// Start Transmit:
+	netif_start_queue(dev);
+
+	// Start Receive:
+	queue_work(priv->workqueue, &priv->work);
+
+	erc = 0;
+	goto out_exit;
+
+out_unlock_speed:
+	daisy_unlock_speed(daisy_spi);
+out_close_device:
+	daisy_close_device(priv->daisy_device);
+	priv->daisy_device = NULL;
+out_exit:
 	return erc;
 }
 
@@ -122,13 +164,36 @@ static int daisy_down(struct net_device *dev)
 {
 	if (dev) {
 		struct daisy_priv *priv = netdev_priv(dev);
-		struct root_descriptor *root = priv ? priv->root : NULL;
-		struct daisy_dev *dd = root ? root->daisy_device : NULL;
-		struct daisy_spi *controller = daisy_get_controller(dd);
 
 		printk(KERN_DEBUG "daisy: Net device down \"%s\"\n", dev->name);
+		del_timer(&priv->timer);
 		netif_stop_queue(dev);
-		daisy_unlock_speed(controller);
+
+		// Stop the receive loop:
+		if (priv->workqueue) {
+			struct completion completion;
+
+			// Stop the receive loop:
+			init_completion(&completion);
+			priv->completion = &completion;
+			daisy_interrupt_read(priv->daisy_device);
+			wait_for_completion(&completion);
+			flush_workqueue(priv->workqueue);
+			destroy_workqueue(priv->workqueue);
+			priv->workqueue = NULL;
+		}
+
+		// Close daisy device:
+		if (priv->daisy_device) {
+			struct daisy_spi *daisy_spi =
+					daisy_get_controller(priv->daisy_device);
+
+			// Unlock bus speed:
+			if (daisy_spi)
+				daisy_unlock_speed(daisy_spi);
+			daisy_close_device(priv->daisy_device);
+			priv->daisy_device = NULL;
+		}
 	}
 	return 0;
 }
@@ -153,8 +218,6 @@ static void daisy_cleanup(void)
 					rd->net_device->name);
 			free_netdev(rd->net_device);
 			rd->net_device = NULL;
-			daisy_close_device(rd->daisy_device);
-			rd->daisy_device = NULL;
 		}
 	} // end while //
 	printk(KERN_DEBUG "daisy: Free root array\n");
@@ -190,13 +253,6 @@ static int __init daisy_init_module(void)
 
 	/* Open network devices */
 	for (i = 0, pd = root; i < n_roots; ++i, ++pd) {
-		pd->daisy_device = daisy_open_device(i);
-		if (!pd->daisy_device) {
-			printk(KERN_ERR	"daisy: Unable to open SPI device %d\n", i);
-			erc = -ENODEV;
-			goto out;
-		}
-
 		if (!(pd->net_device = alloc_netdev(
 				sizeof(struct daisy_priv), "dsy%d",
 				NET_NAME_UNKNOWN, daisy_init)))
@@ -225,6 +281,7 @@ static int __init daisy_init_module(void)
 			goto out;
 		}
 		priv->root = pd;
+		priv->slot = i;
 	} // end for //
 
 	erc = 0;
