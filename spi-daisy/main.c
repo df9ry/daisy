@@ -21,15 +21,12 @@
 #include <linux/spinlock.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/workqueue.h>
-#include <linux/timer.h>
 
 #include <linux/spi/spi.h>
 
 #include "spi-daisy.h"
 #include "bcm2835.h"
 #include "rx_queue.h"
-#include "rd_queue.h"
 #include "tx_queue.h"
 
 #define daisy_SPI_MODE_BITS	(SPI_CPOL | SPI_CPHA | SPI_CS_HIGH \
@@ -41,7 +38,6 @@ struct daisy_spi {
 	struct clk              *clk;
 	uint32_t                 spi_hz;
 	bool                     speed_lock;
-	struct workqueue_struct *workqueue;
 };
 
 struct daisy_dev {
@@ -51,11 +47,7 @@ struct daisy_dev {
 	struct spi_master       *master;
 	uint16_t                 slot;
 	struct rx_queue         *rx_queue;
-	struct rd_queue         *rd_queue;
 	struct tx_queue         *tx_queue;
-	struct work_struct       pump;
-	struct timer_list        timer;
-	volatile bool            quit;
 };
 
 static struct daisy_dev daisy_slots[N_SLOTS];
@@ -66,109 +58,37 @@ static void daisy_spi_handle_err(struct spi_master  *master,
 	printk(KERN_DEBUG DRV_NAME ": Called spi_handle_err()\n");
 }
 
-static void rd_async_work(struct work_struct *ws)
-{
-	struct rd_entry *e = container_of(ws, struct rd_entry, rd_work);
-	e->andthen(e->cb, e->user_data);
-	rd_entry_del(e);
-}
-
-int daisy_read_async(struct daisy_dev *dd, uint8_t *pb, size_t cb,
-					 void *user_data,
-					 void (*andthen)(int cb_read, void *user_data))
-{
-	struct rd_entry *e = rd_entry_new(dd->rd_queue);
-	if (!e)
-		return -ENOMEM;
-	e->pb = pb;
-	e->cb = cb;
-	e->andthen = andthen;
-	e->user_data = user_data;
-	INIT_WORK(&e->rd_work, rd_async_work);
-	rd_entry_put(e);
-	if (!dd->quit)
-		queue_work(dd->spi->workqueue, &dd->pump);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(daisy_read_async);
-
-static void rd_sync_work(struct work_struct *ws)
-{
-	struct rd_entry *e = container_of(ws, struct rd_entry, rd_work);
-	complete((struct completion *)e->user_data);
-}
-
 int daisy_read(struct daisy_dev *dd, uint8_t *pb, size_t cb) {
-	struct rd_entry   *e = rd_entry_new(dd->rd_queue);
-	struct completion  completion;
+	struct rx_entry *e = rx_entry_get(dd->rx_queue);
+	int result;
 
 	if (!e)
-		return -ENOMEM;
-	init_completion(&completion);
-	e->pb = pb;
-	e->cb = cb;
-	e->user_data = &completion;
-	e->andthen = NULL;
-	INIT_WORK(&e->rd_work, rd_sync_work);
-	rd_entry_put(e);
-	if (!dd->quit)
-		queue_work(dd->spi->workqueue, &dd->pump);
-	wait_for_completion(&completion);
-	return e->cb;
+		return -EINVAL;
+	result = e->len;
+	if (result >= 0) {
+		if (result <= cb) {
+			memcpy(pb, &e->pkg[1], result);
+		} else {
+			result = -E2BIG;
+		}
+	}
+	rx_entry_del(e);
+	return result;
 }
 EXPORT_SYMBOL_GPL(daisy_read);
 
-static void tx_async_work(struct work_struct *ws)
-{
-	struct tx_entry *e = container_of(ws, struct tx_entry, tx_work);
-	e->andthen(e->erc, e->user_data);
-	tx_entry_del(e);
-}
-
-int daisy_write_async(struct daisy_dev *dd, uint8_t *pb, size_t cb,
-					  void *user_data, bool priority,
-					  void (*andthen)(int cb_wrote, void *user_data))
-{
-	struct tx_entry *e = tx_entry_new(dd->tx_queue);
-	if (!e)
-		return -ENOMEM;
-	e->user_data = user_data;
-	e->andthen = andthen;
-	e->erc = 0;
-	INIT_WORK(&e->tx_work, tx_async_work);
-	tx_entry_put(e, priority);
-	if (!dd->quit)
-		queue_work(dd->spi->workqueue, &dd->pump);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(daisy_write_async);
-
-static void tx_sync_work(struct work_struct *ws)
-{
-	struct tx_entry *e = container_of(ws, struct tx_entry, tx_work);
-	complete((struct completion *)e->user_data);
-}
-
 int daisy_write(struct daisy_dev *dd, uint8_t *pb, size_t cb, bool priority)
 {
-	struct tx_entry   *e = tx_entry_new(dd->tx_queue);
-	struct completion  completion;
-	int                erc;
+	struct tx_entry   *e;
 
+	if (cb > MAX_PKG_LEN)
+		return -E2BIG;
+	e = tx_entry_new(dd->tx_queue);
 	if (!e)
-		return -ENOMEM;
-	init_completion(&completion);
-	e->user_data = &completion;
-	e->andthen = NULL;
-	e->erc = 0;
-	INIT_WORK(&e->tx_work, tx_sync_work);
+		return -EINTR;
+	memcpy(&e->pkg[1], pb, cb);
 	tx_entry_put(e, priority);
-	wait_for_completion(&completion);
-	erc = e->erc;
-	tx_entry_del(e);
-	if (!dd->quit)
-		queue_work(dd->spi->workqueue, &dd->pump);
-	return (erc < 0) ? erc : cb;
+	return cb;
 }
 EXPORT_SYMBOL_GPL(daisy_write);
 
@@ -194,47 +114,6 @@ void daisy_unlock_speed(struct daisy_spi *spi)
 }
 EXPORT_SYMBOL_GPL(daisy_unlock_speed);
 
-static void pump(struct work_struct *ws)
-{
-	struct daisy_dev *dd = container_of(ws, struct daisy_dev, pump);
-
-	if (dd->quit)
-		return;
-
-	while (rd_entry_can_new(dd->rd_queue)) {
-		struct rx_entry *rx = rx_entry_get(dd->rx_queue);
-		struct rd_entry *rd;
-
-		if (!rx)
-			break;
-		rd = rd_entry_new(dd->rd_queue);
-		if (!rd) {
-			rx_entry_push_back(rx);
-			break;
-		}
-		if (rd->cb >= rx->len) {
-			memcpy(rd->pb, &rx->pkg[1], rx->len);
-			rd->cb = rx->len;
-		} else {
-			memcpy(rd->pb, &rx->pkg[1], rd->cb);
-			rd->cb = -E2BIG;
-		}
-		rx_entry_del(rx);
-	} // end while //
-}
-
-static void timer(unsigned long _dd)
-{
-	struct daisy_dev *dd =(struct daisy_dev *)_dd;
-
-	if (dd->quit)
-		return;
-
-	queue_work(dd->spi->workqueue, &dd->pump);
-	dd->timer.expires += DEFAULT_PUMP_INTERVAL;
-	add_timer(&dd->timer);
-}
-
 struct daisy_dev *daisy_open_device(uint16_t slot)
 {
 	struct daisy_dev *dd;
@@ -246,30 +125,16 @@ struct daisy_dev *daisy_open_device(uint16_t slot)
 	if ((dd->dev == NULL) || (dd->kobj != NULL))
 		return NULL;
 
-	dd->quit = 0;
 	dd->rx_queue = rx_queue_new(DEFAULT_RX_QUEUE_SIZE);
 	if (!dd->rx_queue) {
-		return NULL;
-	}
-	dd->rd_queue = rd_queue_new(DEFAULT_RD_QUEUE_SIZE);
-	if (!dd->rd_queue) {
-		rx_queue_del(dd->rx_queue); dd->rx_queue = NULL;
 		return NULL;
 	}
 	dd->tx_queue = tx_queue_new(DEFAULT_TX_QUEUE_SIZE);
 	if (!dd->tx_queue) {
 		rx_queue_del(dd->rx_queue); dd->rx_queue = NULL;
-		rd_queue_del(dd->rd_queue); dd->rd_queue = NULL;
 		return NULL;
 	}
-	INIT_WORK(&dd->pump, pump);
-	init_timer(&dd->timer);
-	dd->timer.expires = jiffies + DEFAULT_PUMP_INTERVAL;
-	dd->timer.data = (unsigned long)dd;
-	dd->timer.function = timer;
 	dd->kobj = kobject_get(&(dd->dev->dev.kobj));
-	queue_work(dd->spi->workqueue, &dd->pump);
-	add_timer(&dd->timer);
 	return dd;
 }
 EXPORT_SYMBOL_GPL(daisy_open_device);
@@ -278,12 +143,8 @@ void daisy_close_device(struct daisy_dev *dd)
 {
 	if ((dd != NULL) && (dd->kobj != NULL)) {
 		printk(KERN_DEBUG DRV_NAME ": Close handle for slot %d\n", dd->slot);
-		dd->quit = 1;
-		cancel_work(&dd->pump);
-		del_timer(&dd->timer);
 		kobject_put(dd->kobj); dd->kobj = NULL;
 		rx_queue_del(dd->rx_queue); dd->rx_queue = NULL;
-		rd_queue_del(dd->rd_queue); dd->rd_queue = NULL;
 		tx_queue_del(dd->tx_queue); dd->tx_queue = NULL;
 	}
 }
@@ -451,14 +312,6 @@ static int daisy_spi_probe(struct platform_device *pdev)
 		goto out_clk_disable;
 	}
 
-	bs->workqueue = create_workqueue(pdev->name);
-	if (!bs->workqueue) {
-		printk(KERN_ERR DRV_NAME
-				": Could not allocate workqueue\n");
-		err = -ENOMEM;
-		goto out_clk_disable;
-	}
-
 	return 0;
 
 out_clk_disable:
@@ -485,12 +338,6 @@ static int daisy_spi_remove(struct platform_device *pdev)
 	for (i = 0; i < N_SLOTS; ++i) {
 		daisy_close_device(&daisy_slots[i]);
 		daisy_slots[i].dev = NULL;
-	}
-
-	if (bs->workqueue) {
-		flush_workqueue(bs->workqueue);
-		destroy_workqueue(bs->workqueue);
-		bs->workqueue = NULL;
 	}
 
 	bcm2835_spi_end();

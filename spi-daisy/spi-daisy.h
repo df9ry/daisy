@@ -30,7 +30,6 @@
 
 #define DEFAULT_RX_QUEUE_SIZE 64
 #define DEFAULT_TX_QUEUE_SIZE 64
-#define DEFAULT_RD_QUEUE_SIZE  2
 #define DEFAULT_PUMP_INTERVAL 10
 
 struct daisy_dev;
@@ -58,23 +57,6 @@ extern void daisy_transfer(struct daisy_dev *dd, const volatile uint8_t *tx,
 extern void daisy_close_device(struct daisy_dev *bs);
 
 /**
- * Asynchronous read from the daisy device.
- * @param dd         Daisy device to read from.
- * @param pb         Pointer to a suitable receive buffer.
- * @param cb         Size of the receive buffer.
- * @param user_data  Arbitrary pointer that is returned by the andthen
- *                   function.
- * @param andthen    Pointer to a function that shall be called when the
- *                   read completes. This function will get the actual
- *                   number read or an negative error_code and the user_data
- *                   pointer.
- * @return           0 when OK or negative error code in the case of failure.
- */
-extern int daisy_read_async(struct daisy_dev *dd, uint8_t *pb, size_t cb,
-							void *user_data,
-							void (*andthen)(int cb_read, void *user_data));
-
-/**
  * Synchronous read from the daisy device.
  * @param dd         Daisy device to read from.
  * @param pb         Pointer to a suitable receive buffer.
@@ -82,24 +64,6 @@ extern int daisy_read_async(struct daisy_dev *dd, uint8_t *pb, size_t cb,
  * @return           Number of bytes read, or negative error code on error.
  */
 extern int daisy_read(struct daisy_dev *dd, uint8_t *pb, size_t cb);
-
-/**
- * Asynchronous write to the daisy device.
- * @param dd         Daisy device to write to.
- * @param pb         Pointer to the data to write.
- * @param user_data  Arbitrary pointer that is returned by the andthen
- *                   function.
- * @param priority   When set send messages before messages sent without
- *                   priority.
- * @param andthen    Pointer to a function that shall be called when the
- *                   write completes. This function will get the actual
- *                   number written or an negative error_code and the user_data
- *                   pointer.
- * @return           0 when OK or negative error code in the case of failure.
- */
-extern int daisy_write_async(struct daisy_dev *dd, uint8_t *pb, size_t cb,
-							 void *user_data, bool priority,
-							 void (*andthen)(int cb_wrote, void *user_data));
 
 /**
  * Synchronized write the daisy device.

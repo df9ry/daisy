@@ -35,6 +35,7 @@ struct rx_queue *rx_queue_new(size_t size) {
 
 	INIT_LIST_HEAD(&q->free);
 	INIT_LIST_HEAD(&q->fifo);
+	sema_init(&q->sem, 0);
 	spin_lock_init(&q->lock);
 	for (i = 0; i < size; i++) {
 		struct rx_entry *e = &q->data[i];
@@ -48,6 +49,5 @@ struct rx_queue *rx_queue_new(size_t size) {
 void rx_queue_del(struct rx_queue *q) {
 	if (!q)
 		return;
-
 	kfree(q);
 }

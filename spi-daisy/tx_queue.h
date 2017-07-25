@@ -22,8 +22,9 @@
 #include <linux/module.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
-#include <linux/completion.h>
-#include <linux/workqueue.h>
+#include <linux/semaphore.h>
+
+#include "spi-daisy.h"
 
 struct tx_queue;
 
@@ -33,10 +34,8 @@ struct tx_queue;
 struct tx_entry {
 	struct list_head   list;
 	struct tx_queue   *queue;
-	struct work_struct tx_work;
-	void             (*andthen)(int cb_wrote, void *user_data);
-	void              *user_data;
-	int                erc;
+	u8                 pkg[MAX_PKG_LEN + 2];
+	int                len;
 };
 
 /**
@@ -46,6 +45,7 @@ struct tx_queue {
 	struct list_head   free;
 	struct list_head   fifo;
 	struct list_head   prio;
+	struct semaphore   sem;
 	spinlock_t         lock;
 	struct tx_entry    data[0]; // Hack: dynamically allocation
 };
@@ -68,21 +68,6 @@ struct tx_queue *tx_queue_new(size_t size);
 void tx_queue_del(struct tx_queue *q);
 
 /**
- * Check if a subsequent tx_entry_new() would succeed.
- * @param q Pointer to the tx_queue to check.
- * @return Value != 0 if a subsequent tx_entry_new() would succeed.
- */
-static inline int tx_entry_can_new(struct tx_queue *q) {
-	int           empty;
-	unsigned long flags;
-
-	spin_lock_irqsave(&q->lock, flags);
-	/**/ empty = list_empty(&q->free);
-	spin_unlock_irqrestore(&q->lock, flags);
-	return !empty;
-}
-
-/**
  * Alloc a new tx_entry to later put to the tx_queue. Do never try to
  * delete this tx_entry. Use tx_entry_put or tx_entry_del() to return
  * this tx_entry to the tx_queue.
@@ -91,9 +76,12 @@ static inline int tx_entry_can_new(struct tx_queue *q) {
  * @error  return NULL, if no more tx_entry is available.
  */
 static inline struct tx_entry *tx_entry_new(struct tx_queue *q) {
-	struct tx_entry *e = NULL;
-	unsigned long    flags;
+	struct tx_entry  *e = NULL;
+	int               d = down_interruptible(&q->sem);
+	unsigned long     flags;
 
+	if (d)
+		return NULL;
 	spin_lock_irqsave(&q->lock, flags);
 	/**/ if (!list_empty(&q->free)) {
 	/**/ 	struct list_head *_e = q->free.next;
@@ -109,13 +97,14 @@ static inline struct tx_entry *tx_entry_new(struct tx_queue *q) {
  * be reused later.
  * @param e Pointer to the tx_entry to return.
  */
-static inline void tx_entry_del(struct tx_entry * e) {
+static inline void tx_entry_del(struct tx_entry *e) {
 	struct tx_queue *q = e->queue;
 	unsigned long    flags;
 
 	spin_lock_irqsave(&q->lock, flags);
 	/**/ list_add_tail(&q->free, &e->list);
 	spin_unlock_irqrestore(&q->lock, flags);
+	up(&q->sem);
 }
 
 /**
@@ -123,7 +112,7 @@ static inline void tx_entry_del(struct tx_entry * e) {
  * after all entries put before.
  * @param e Pointer to the tx_entry to put.
  */
-static inline void tx_entry_put(struct tx_entry * e, bool prio) {
+static inline void tx_entry_put(struct tx_entry *e, bool prio) {
 	struct tx_queue *q = e->queue;
 	unsigned long    flags;
 
@@ -133,21 +122,6 @@ static inline void tx_entry_put(struct tx_entry * e, bool prio) {
 	/**/ else
 	/**/ 	list_add_tail(&q->fifo, &e->list);
 	spin_unlock_irqrestore(&q->lock, flags);
-}
-
-/**
- * Check if a subsequent tx_entry_get() would succeed.
- * @param q Pointer to the tx_queue to check.
- * @return Value != 0 if a subsequent tx_entry_get() would succeed.
- */
-static inline int tx_entry_can_get(struct tx_queue *q) {
-	int           empty;
-	unsigned long flags;
-
-	spin_lock_irqsave(&q->lock, flags);
-	/**/ empty = list_empty(&q->prio) && list_empty(&q->fifo);
-	spin_unlock_irqrestore(&q->lock, flags);
-	return !empty;
 }
 
 /**

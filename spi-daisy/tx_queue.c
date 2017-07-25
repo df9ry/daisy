@@ -21,8 +21,6 @@
 
 #include "tx_queue.h"
 
-static void dummy_work(struct work_struct *ws) {}
-
 struct tx_queue *tx_queue_new(size_t size) {
 	int    i;
 	struct tx_queue *q = kmalloc(
@@ -36,13 +34,13 @@ struct tx_queue *tx_queue_new(size_t size) {
 	}
 
 	INIT_LIST_HEAD(&q->free);
-	INIT_LIST_HEAD(&q->fifo);
 	INIT_LIST_HEAD(&q->prio);
+	INIT_LIST_HEAD(&q->fifo);
+	sema_init(&q->sem, size);
 	spin_lock_init(&q->lock);
 	for (i = 0; i < size; i++) {
 		struct tx_entry *e = &q->data[i];
 		INIT_LIST_HEAD(&e->list);
-		INIT_WORK(&e->tx_work, dummy_work);
 		e->queue = q;
 	} //end for //
 
@@ -52,19 +50,5 @@ struct tx_queue *tx_queue_new(size_t size) {
 void tx_queue_del(struct tx_queue *q) {
 	if (!q)
 		return;
-
-	while (1) {
-		struct tx_entry *e = tx_entry_get(q);
-
-		if (!e)
-			break;
-		cancel_work(&e->tx_work);
-		e->erc = -EINTR;
-		if (e->andthen)
-			e->andthen(e->erc, e->user_data);
-		else
-			complete((struct completion *)e->user_data);
-	} // end while //
-
 	kfree(q);
 }

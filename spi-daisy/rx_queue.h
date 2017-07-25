@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <linux/semaphore.h>
 
 #include "spi-daisy.h"
 
@@ -43,6 +44,7 @@ struct rx_entry {
 struct rx_queue {
 	struct list_head   free;
 	struct list_head   fifo;
+	struct semaphore   sem;
 	spinlock_t         lock;
 	struct rx_entry    data[0]; // Hack: dynamically allocation
 };
@@ -63,21 +65,6 @@ struct rx_queue *rx_queue_new(size_t size);
  * @param q Pointer to rx_queue.
  */
 void rx_queue_del(struct rx_queue *q);
-
-/**
- * Check if a subsequent rx_entry_new() would succeed.
- * @param q Pointer to the rx_queue to check.
- * @return Value != 0 if a subsequent rx_entry_new() would succeed.
- */
-static inline int rx_entry_can_new(struct rx_queue *q) {
-	int           empty;
-	unsigned long flags;
-
-	spin_lock_irqsave(&q->lock, flags);
-	/**/ empty = list_empty(&q->free);
-	spin_unlock_irqrestore(&q->lock, flags);
-	return !empty;
-}
 
 /**
  * Alloc a new rx_entry to later put to the rx_queue. Do never try to
@@ -106,7 +93,7 @@ static inline struct rx_entry *rx_entry_new(struct rx_queue *q) {
  * be reused later.
  * @param e Pointer to the rx_entry to return.
  */
-static inline void rx_entry_del(struct rx_entry * e) {
+static inline void rx_entry_del(struct rx_entry *e) {
 	struct rx_queue *q = e->queue;
 	unsigned long    flags;
 
@@ -120,41 +107,14 @@ static inline void rx_entry_del(struct rx_entry * e) {
  * after all entries put before.
  * @param e Pointer to the rx_entry to put.
  */
-static inline void rx_entry_put(struct rx_entry * e) {
+static inline void rx_entry_put(struct rx_entry *e) {
 	struct rx_queue *q = e->queue;
 	unsigned long    flags;
 
 	spin_lock_irqsave(&q->lock, flags);
 	/**/ list_add_tail(&q->fifo, &e->list);
 	spin_unlock_irqrestore(&q->lock, flags);
-}
-
-/**
- * Undo a previous rx_entry_get.
- * @param e Pointer to the rx_entry to push back.
- */
-static inline void rx_entry_push_back(struct rx_entry * e) {
-	struct rx_queue *q = e->queue;
-	unsigned long    flags;
-
-	spin_lock_irqsave(&q->lock, flags);
-	/**/ list_add(&q->fifo, &e->list);
-	spin_unlock_irqrestore(&q->lock, flags);
-}
-
-/**
- * Check if a subsequent rx_entry_get() would succeed.
- * @param q Pointer to the rx_queue to check.
- * @return Value != 0 if a subsequent rx_entry_get() would succeed.
- */
-static inline int rx_entry_can_get(struct rx_queue *q) {
-	int           empty;
-	unsigned long flags;
-
-	spin_lock_irqsave(&q->lock, flags);
-	/**/ empty = list_empty(&q->fifo);
-	spin_unlock_irqrestore(&q->lock, flags);
-	return !empty;
+	up(&q->sem);
 }
 
 /**
@@ -167,8 +127,11 @@ static inline int rx_entry_can_get(struct rx_queue *q) {
  */
 static inline struct rx_entry *rx_entry_get(struct rx_queue *q) {
 	struct rx_entry  *e = NULL;
+	int               d = down_interruptible(&q->sem);
 	unsigned long     flags;
 
+	if (d)
+		return NULL;
 	spin_lock_irqsave(&q->lock, flags);
 	/**/ if (!list_empty(&q->fifo)) {
 	/**/ 	struct list_head *_e = q->fifo.next;
