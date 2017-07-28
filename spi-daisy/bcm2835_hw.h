@@ -349,9 +349,9 @@ typedef enum
 */
 typedef enum
 {
-    BCM2835_SPI_CS0 = 0,     /*!< Chip Select 0 */
-    BCM2835_SPI_CS1 = 1,     /*!< Chip Select 1 */
-    BCM2835_SPI_CS2 = 2,     /*!< Chip Select 2 (ie pins CS1 and CS2 are asserted) */
+    BCM2835_SPI_CS0     = 0, /*!< Chip Select 0 */
+    BCM2835_SPI_CS1     = 1, /*!< Chip Select 1 */
+    BCM2835_SPI_CS2     = 2, /*!< Chip Select 2 (ie pins CS1 and CS2 are asserted) */
     BCM2835_SPI_CS_NONE = 3  /*!< No CS, control it yourself */
 } bcm2835SPIChipSelect;
 
@@ -394,7 +394,7 @@ typedef enum
    GPIO register offsets from BCM2835_BSC*_BASE.
    Offsets into the BSC Peripheral block in bytes per 3.1 BSC Register Map
 */
-#define BCM2835_BSC_C 							0x0000 /*!< BSC Master Control */
+#define BCM2835_BSC_C 			0x0000 /*!< BSC Master Control */
 #define BCM2835_BSC_S 			0x0004 /*!< BSC Master Status */
 #define BCM2835_BSC_DLEN		0x0008 /*!< BSC Master Data Length */
 #define BCM2835_BSC_A 			0x000c /*!< BSC Master Slave Address */
@@ -404,13 +404,13 @@ typedef enum
 #define BCM2835_BSC_CLKT		0x001c /*!< BSC Master Clock Stretch Timeout */
 
 /* Register masks for BSC_C */
-#define BCM2835_BSC_C_I2CEN 		0x00008000 /*!< I2C Enable, 0 = disabled, 1 = enabled */
+#define BCM2835_BSC_C_I2CEN 	0x00008000 /*!< I2C Enable, 0 = disabled, 1 = enabled */
 #define BCM2835_BSC_C_INTR 		0x00000400 /*!< Interrupt on RX */
 #define BCM2835_BSC_C_INTT 		0x00000200 /*!< Interrupt on TX */
 #define BCM2835_BSC_C_INTD 		0x00000100 /*!< Interrupt on DONE */
 #define BCM2835_BSC_C_ST 		0x00000080 /*!< Start transfer, 1 = Start a new transfer */
-#define BCM2835_BSC_C_CLEAR_1 		0x00000020 /*!< Clear FIFO Clear */
-#define BCM2835_BSC_C_CLEAR_2 		0x00000010 /*!< Clear FIFO Clear */
+#define BCM2835_BSC_C_CLEAR_1 	0x00000020 /*!< Clear FIFO Clear */
+#define BCM2835_BSC_C_CLEAR_2 	0x00000010 /*!< Clear FIFO Clear */
 #define BCM2835_BSC_C_READ 		0x00000001 /*!<	Read transfer */
 
 /* Register masks for BSC_S */

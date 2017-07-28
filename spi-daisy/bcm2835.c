@@ -106,7 +106,7 @@ static void bcm2835_peri_set_bits(volatile uint32_t* paddr, uint32_t value,
 // So the 3 bits for port X are:
 //      X / 10 + ((X % 10) * 3)
 */
-static void bcm2835_gpio_fsel(uint8_t pin, uint8_t mode) {
+void bcm2835_gpio_fsel(uint8_t pin, uint8_t mode) {
     /* Function selects are 10 pins per 32 bit word, 3 bits per pin */
     volatile uint32_t* paddr = bcm2835_gpio + BCM2835_GPFSEL0/4 + (pin/10);
     uint8_t   shift = (pin % 10) * 3;

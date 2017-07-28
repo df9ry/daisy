@@ -16,36 +16,11 @@
  *    along with Daisy.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/module.h>
-#include <linux/interrupt.h>
-#include <linux/gpio.h>
+#ifndef _STATUS_IDLE_H_
+#define _STATUS_IDLE_H_
 
-#include "spi-daisy.h"
-#include "spi.h"
+status_idle:
 
-#define IO_MAX 64
+	goto out;
 
-
-irqreturn_t irq_handler(int irq, void *_dd, struct pt_regs *regs)
-{
-	//static u8     tx_scratch[IO_MAX+2];
-	//static u8     rx_scratch[IO_MAX+2];
-	unsigned long flags;
-	struct        daisy_dev *dd = (struct daisy_dev *)_dd;
-	u16           intr_status   = daisy_get_register16(dd,
-									RFM22B_REG_INTERRUPT_STATUS);
-	local_irq_save(flags);
-
-	switch (dd->state) {
-	case STATUS_IDLE:
-		goto status_idle;
-	} // end switch //
-
-#include "status_idle.h"
-
-out:
-	local_irq_restore(flags);
-
-	return IRQ_HANDLED;
-}
-
+#endif //_STATUS_IDLE_H_//

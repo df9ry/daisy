@@ -41,6 +41,48 @@ static void daisy_spi_handle_err(struct spi_master  *master,
 	printk(KERN_DEBUG DRV_NAME ": Called spi_handle_err()\n");
 }
 
+void daisy_device_up(struct daisy_dev *dd)
+{
+	if (!dd)
+		return;
+	printk(KERN_DEBUG DRV_NAME ": Called daisy_up()\n");
+	dd->state = STATUS_IDLE;
+	daisy_set_register8(dd, RFM22B_REG_DEVICE_STATUS, 0x00);
+	// Assure, that FIFO mode is selected:
+	daisy_set_mbits16(dd, RFM22B_REG_MODULATION_MODE,
+			RFM22B_DTMOD_MASK, RFM22B_DTMOD_FIFO);
+	// Program operation mode:
+	daisy_set_register16(dd, RFM22B_REG_OPERATING_MODE,
+			RFM22B_ENLDM      |
+			RFM22B_RXMPK      |
+			RFM22B_XTON       |
+			RFM22B_PLLON      |
+			RFM22B_RXON);
+	// Clear pending interrupt status flags:
+	daisy_set_register16(dd, RFM22B_REG_INTERRUPT_STATUS, 0x0000);
+	// Enable interrupts:
+	daisy_set_register16(dd, RFM22B_REG_INTERRUPT_ENABLE,
+			RFM22B_ENCRCERROR |
+			RFM22B_ENPKVALID  |
+			RFM22B_ENPKSENT   |
+			RFM22B_ENRXFFAFUL |
+			RFM22B_ENTXFFAEM  |
+			RFM22B_ENFFERR    |
+			RFM22B_ENCHIPRDY  |
+			RFM22B_ENRSSI     |
+			RFM22B_ENSWDET);
+}
+
+void daisy_device_down(struct daisy_dev *dd)
+{
+	if (!dd)
+		return;
+	printk(KERN_DEBUG DRV_NAME ": Called daisy_down()\n");
+	daisy_set_register16(dd, RFM22B_REG_INTERRUPT_ENABLE, 0x0000);
+	daisy_set_register16(dd, RFM22B_REG_INTERRUPT_STATUS, 0x0000);
+	daisy_set_register16(dd, RFM22B_REG_OPERATING_MODE,   0x0000);
+}
+
 void daisy_register_stats(struct daisy_dev        *dd,
 						  struct net_device_stats *stats)
 {
@@ -156,6 +198,7 @@ struct daisy_dev *daisy_open_device(uint16_t slot)
 
 	dd->stats = NULL;
 	dd->irq = 0;
+	dd->state = STATUS_IDLE;
 
 	dd->rx_queue = rx_queue_new(DEFAULT_RX_QUEUE_SIZE);
 	if (!dd->rx_queue)
@@ -168,6 +211,8 @@ struct daisy_dev *daisy_open_device(uint16_t slot)
 	dd->kobj = kobject_get(&(dd->dev->dev.kobj));
 	if (!dd->kobj)
 		goto out_tx_queue_del;
+
+	bcm2835_gpio_fsel(GPIO_PIN, BCM2835_GPIO_FSEL_ALT0);
 
 	if (gpio_request(GPIO_PIN, GPIO_DESC))
 		goto out_kobject_put;
@@ -186,6 +231,7 @@ out_free_irq:
 	free_irq(dd->irq, dd);
 	dd->irq = 0;
 out_gpio_free:
+	bcm2835_gpio_fsel(GPIO_PIN, BCM2835_GPIO_FSEL_INPT);
 	gpio_free(GPIO_PIN);
 out_kobject_put:
 	kobject_put(dd->kobj);

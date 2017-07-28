@@ -21,35 +21,40 @@
 
 #include <linux/module.h>
 
-/*
+/**
  * Initialize the BCM2835.
  */
 extern int bcm2835_initialize(struct resource *res);
 
-/*
+/**
  * Release the BCM2835.
  */
 extern void bcm2835_release(void);
 
-/*
+/**
  * Begin SPI communication:
  */
 extern int bcm2835_spi_begin(void);
 
-/*
+/**
  * Shutdown SPI communication:
  */
 extern void bcm2835_spi_end(void);
 
-/*
+/**
  * Set the SPI communication speed:
  */
 extern void bcm2835_spi_setClockDivider(uint16_t divider);
 
-/*
+/**
  * SPI transfer:
  */
 extern void bcm2835_spi_transfernb(const volatile uint8_t *tx,
 										 volatile uint8_t *rx, size_t cb);
+
+/**
+ * Select the function of a GPIO pin:
+ */
+extern void bcm2835_gpio_fsel(uint8_t pin, uint8_t mode);
 
 #endif /* _BCM2835_H_ */
