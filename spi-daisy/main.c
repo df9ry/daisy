@@ -20,6 +20,8 @@
 #include <linux/clk.h>
 #include <linux/spinlock.h>
 #include <linux/of.h>
+#include <linux/netdevice.h>
+#include <linux/skbuff.h>
 #include <linux/platform_device.h>
 
 #include <linux/spi/spi.h>
@@ -31,6 +33,8 @@
 
 #define daisy_SPI_MODE_BITS	(SPI_CPOL | SPI_CPHA | SPI_CS_HIGH \
 				| SPI_NO_CS | SPI_3WIRE)
+
+struct net_device_stats;
 
 struct daisy_spi {
 	struct platform_device  *pdev;
@@ -47,6 +51,7 @@ struct daisy_dev {
 	struct spi_master       *master;
 	struct rx_queue         *rx_queue;
 	struct tx_queue         *tx_queue;
+	struct net_device_stats *stats;
 	uint16_t                 slot;
 };
 
@@ -58,37 +63,49 @@ static void daisy_spi_handle_err(struct spi_master  *master,
 	printk(KERN_DEBUG DRV_NAME ": Called spi_handle_err()\n");
 }
 
-int daisy_read(struct daisy_dev *dd, uint8_t *pb, size_t cb) {
+void daisy_register_stats(struct daisy_dev        *dd,
+						  struct net_device_stats *stats)
+{
+	if (dd)
+		dd->stats = stats;
+}
+EXPORT_SYMBOL_GPL(daisy_register_stats);
+
+struct sk_buff *daisy_read(struct daisy_dev *dd) {
 	struct rx_entry *e = rx_entry_get(dd->rx_queue);
-	int result;
+	struct sk_buff  *skb;
 
 	if (!e)
-		return -EINVAL;
-	result = e->len;
-	if (result >= 0) {
-		if (result <= cb) {
-			memcpy(pb, &e->pkg[1], result);
-		} else {
-			result = -E2BIG;
-		}
+		return NULL;
+	skb = e->skb;
+	e->skb = dev_alloc_skb(MAX_PKG_LEN+2);
+	if (!e->skb) {
+		if (printk_ratelimit())
+			printk(KERN_ERR "spi-daisy: Unable to alloc socket buffer\n");
 	}
 	rx_entry_del(e);
-	return result;
+	return skb;
 }
 EXPORT_SYMBOL_GPL(daisy_read);
 
-int daisy_write(struct daisy_dev *dd, uint8_t *pb, size_t cb, bool priority)
+int daisy_write(struct daisy_dev *dd, struct sk_buff *skb, bool priority)
 {
 	struct tx_entry   *e;
 
-	if (cb > MAX_PKG_LEN)
+	if (!skb)
+		return -EINVAL;
+	if (skb->len > MAX_PKG_LEN) {
+		if (dd->stats) {
+			dd->stats->tx_errors ++;
+		}
 		return -E2BIG;
+	}
 	e = tx_entry_new(dd->tx_queue);
 	if (!e)
 		return -EINTR;
-	memcpy(&e->pkg[1], pb, cb);
+	e->skb = skb;
 	tx_entry_put(e, priority);
-	return cb;
+	return skb->len;
 }
 EXPORT_SYMBOL_GPL(daisy_write);
 
@@ -98,18 +115,24 @@ bool daisy_can_write(struct daisy_dev *dd)
 }
 EXPORT_SYMBOL_GPL(daisy_can_write);
 
-int daisy_try_write(struct daisy_dev *dd, uint8_t *pb, size_t cb, bool priority)
+int daisy_try_write(struct daisy_dev *dd, struct sk_buff *skb, bool priority)
 {
 	struct tx_entry   *e;
 
-	if (cb > MAX_PKG_LEN)
+	if (!skb)
+		return -EINVAL;
+	if (skb->len > MAX_PKG_LEN) {
+		if (dd->stats) {
+			dd->stats->tx_errors ++;
+		}
 		return -E2BIG;
+	}
 	e = tx_entry_try_new(dd->tx_queue);
 	if (!e)
 		return -ERESTARTSYS;
-	memcpy(&e->pkg[1], pb, cb);
+	e->skb = skb;
 	tx_entry_put(e, priority);
-	return cb;
+	return skb->len;
 }
 EXPORT_SYMBOL_GPL(daisy_try_write);
 
@@ -153,6 +176,7 @@ struct daisy_dev *daisy_open_device(uint16_t slot)
 	if ((dd->dev == NULL) || (dd->kobj != NULL))
 		return NULL;
 
+	dd->stats = NULL;
 	dd->rx_queue = rx_queue_new(DEFAULT_RX_QUEUE_SIZE);
 	if (!dd->rx_queue) {
 		return NULL;
@@ -174,6 +198,7 @@ void daisy_close_device(struct daisy_dev *dd)
 		kobject_put(dd->kobj); dd->kobj = NULL;
 		rx_queue_del(dd->rx_queue); dd->rx_queue = NULL;
 		tx_queue_del(dd->tx_queue); dd->tx_queue = NULL;
+		dd->stats = NULL;
 	}
 }
 EXPORT_SYMBOL_GPL(daisy_close_device);

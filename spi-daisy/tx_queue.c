@@ -18,6 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/ip.h>
 
 #include "tx_queue.h"
 
@@ -48,7 +49,23 @@ struct tx_queue *tx_queue_new(size_t size) {
 }
 
 void tx_queue_del(struct tx_queue *q) {
-	if (!q)
-		return;
-	kfree(q);
+	if (q) {
+		struct tx_entry *e = tx_entry_get(q);
+		while (e) {
+			if (e->skb) {
+				dev_kfree_skb(e->skb);
+				e->skb = NULL;
+			}
+			e = tx_entry_get(q);
+		} // end while //
+		e = tx_entry_new(q);
+		while (e) {
+			if (e->skb) {
+				dev_kfree_skb(e->skb);
+				e->skb = NULL;
+			}
+			e = tx_entry_new(q);
+		} // end while //
+		kfree(q);
+	}
 }

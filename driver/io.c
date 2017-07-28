@@ -49,7 +49,7 @@ int daisy_tx(struct sk_buff *skb, struct net_device *dev)
 
 	if (priv->completion)
 		return -ERESTARTSYS;
-	erc = daisy_try_write(priv->daisy_device, skb->data, skb->len, 0);
+	erc = daisy_try_write(priv->daisy_device, skb, 0);
 	if (erc < 0) {
 		printk(KERN_ERR "daisy: TX %d octets failed with erc %d\n",
 				skb->len, erc);
@@ -65,7 +65,6 @@ int daisy_tx(struct sk_buff *skb, struct net_device *dev)
 	dev_trans_start(dev);
 	priv->stats.tx_packets ++;
 	priv->stats.tx_bytes += skb->len;
-	dev_kfree_skb(skb);
 	return 0;
 }
 
@@ -83,36 +82,29 @@ void daisy_tx_timeout (struct net_device *dev)
  */
 void daisy_rx(struct work_struct *ws)
 {
-	u8 buf[MAX_PKG_LEN+2];
+	struct sk_buff    *skb;
+	struct net_device *dev;
+
 	struct daisy_priv *priv = container_of(ws, struct daisy_priv, work);
-	int res = daisy_read(priv->daisy_device, buf, sizeof(buf));
 	if (priv->completion) {
 		printk(KERN_DEBUG "daisy: RX exit\n");
 		complete(priv->completion);
 		return;
 	}
-	if (res >= 0) {
-		struct sk_buff    *skb;
-		struct net_device *dev = priv->root->net_device;
-
-		if (printk_ratelimit())
-			printk(KERN_DEBUG "daisy: RX %d octets\n", res);
-		skb = dev_alloc_skb(res + 2);
-		if (skb) {
-			memcpy(skb_put(skb, res), &buf[1], res);
-			skb->dev = dev;
-			skb->protocol = eth_type_trans(skb, dev);
-			skb->ip_summed = 0;
-			priv->stats.rx_packets++;
-			priv->stats.rx_bytes += res;
-			netif_rx(skb);
-		} else {
-			printk(KERN_ERR "daisy: RX: Unable to allocate socket buffer\n");
-			priv->stats.rx_dropped++;
-		}
-	} else {
-		printk(KERN_ERR "daisy: RX failed with erc=%d\n", res);
-		priv->stats.rx_errors++;
+	skb = daisy_read(priv->daisy_device);
+	if (!skb) {
+		printk(KERN_ERR "daisy: RX: Get NULL socket buffer\n");
+		goto out;
 	}
+	dev  = priv->root->net_device;
+	if (printk_ratelimit())
+		printk(KERN_DEBUG "daisy: RX %d octets\n", skb->len);
+	skb->dev = dev;
+	skb->protocol = eth_type_trans(skb, dev);
+	skb->ip_summed = 0;
+	priv->stats.rx_packets++;
+	priv->stats.rx_bytes += skb->len;
+	netif_rx(skb);
+out:
 	queue_work(priv->workqueue, &priv->work);
 }

@@ -27,6 +27,7 @@
 #include "spi-daisy.h"
 
 struct rx_queue;
+struct sk_buff;
 
 /**
  * rx_entry in rx_queue.
@@ -34,8 +35,7 @@ struct rx_queue;
 struct rx_entry {
 	struct list_head   list;
 	struct rx_queue   *queue;
-	u8                 pkg[MAX_PKG_LEN + 2];
-	int                len;
+	struct sk_buff    *skb;
 };
 
 /**

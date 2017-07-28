@@ -34,12 +34,22 @@
 
 struct daisy_dev;
 struct daisy_spi;
+struct sk_buff;
+struct net_device_stats;
 
 /**
  * Open a daisy device. Use daisy_close_handle() to release the device.
  * @param slot SPI slot (chip select line) of the SPI device.
  */
 extern struct daisy_dev *daisy_open_device(uint16_t slot);
+
+/**
+ * Register the net_device_stats for the device.
+ * @param dd    Device to register the net_dev_stats for.
+ * @param stats Struct net_device_stats for the device.
+ */
+extern void daisy_register_stats(struct daisy_dev *dd,
+		struct net_device_stats *stats);
 
 /**
  * Common utility for SPI IO.
@@ -61,20 +71,20 @@ extern void daisy_close_device(struct daisy_dev *bs);
  * @param dd         Daisy device to read from.
  * @param pb         Pointer to a suitable receive buffer.
  * @param cb         Size of the receive buffer.
- * @return           Number of bytes read, or negative error code on error.
+ * @return           Received sk_buff or NULL in the case of error.
  */
-extern int daisy_read(struct daisy_dev *dd, uint8_t *pb, size_t cb);
+extern struct sk_buff *daisy_read(struct daisy_dev *dd);
 
 /**
  * Synchronized write the daisy device.
  * @param dd         Daisy device to write to.
- * @param pb         Pointer to the data to write.
- * @param cb         Size of the data to write.
+ * @param skb        Socket buffer to write. If daisy_write() succeeds
+ *                   you take the responsibility of skb over to spi-daisy.
  * @param priority   When set send messages before messages sent without
  *                   priority.
  * @return           Number of bytes written or a negative error code on error.
  */
-extern int daisy_write(struct daisy_dev *dd, uint8_t *pb, size_t cb,
+extern int daisy_write(struct daisy_dev *dd, struct sk_buff *skb,
 					   bool priority);
 
 /**
@@ -87,14 +97,14 @@ extern bool daisy_can_write(struct daisy_dev *dd);
 /**
  * Try write the daisy device.
  * @param dd         Daisy device to write to.
- * @param pb         Pointer to the data to write.
- * @param cb         Size of the data to write.
+ * @param skb        Socket buffer to write. If daisy_write() succeeds
+ *                   you take the responsibility of skb over to spi-daisy.
  * @param priority   When set send messages before messages sent without
  *                   priority.
  * @return           Number of bytes written, -EAGAIN when no write buffer
  *                   is available or another negative error code on error.
  */
-extern int daisy_try_write(struct daisy_dev *dd, uint8_t *pb, size_t cb,
+extern int daisy_try_write(struct daisy_dev *dd, struct sk_buff *skb,
 					       bool priority);
 
 /**

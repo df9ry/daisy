@@ -18,8 +18,10 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/ip.h>
 
 #include "rx_queue.h"
+#include "spi-daisy.h"
 
 struct rx_queue *rx_queue_new(size_t size) {
 	int    i;
@@ -41,13 +43,38 @@ struct rx_queue *rx_queue_new(size_t size) {
 		struct rx_entry *e = &q->data[i];
 		INIT_LIST_HEAD(&e->list);
 		e->queue = q;
+		e->skb = NULL;
 	} //end for //
-
+	for (i = 0; i < size; i++) {
+		struct rx_entry *e = &q->data[i];
+		e->skb = dev_alloc_skb(MAX_PKG_LEN+2);
+		if (!e->skb) {
+			rx_queue_del(q);
+			return NULL;
+		}
+	} // end for //
 	return q;
 }
 
 void rx_queue_del(struct rx_queue *q) {
+	struct rx_entry *e;
 	if (!q)
 		return;
+	e = rx_entry_get(q);
+	while (e) {
+		if (e->skb) {
+			dev_kfree_skb(e->skb);
+			e->skb = NULL;
+		}
+		e = rx_entry_get(q);
+	} // end while //
+	e = rx_entry_new(q);
+	while (e) {
+		if (e->skb) {
+			dev_kfree_skb(e->skb);
+			e->skb = NULL;
+		}
+		e = rx_entry_new(q);
+	} // end while //
 	kfree(q);
 }

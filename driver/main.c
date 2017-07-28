@@ -104,6 +104,7 @@ static int daisy_up(struct net_device *dev)
 		erc = -ENODEV;
 		goto out_exit;
 	}
+	daisy_register_stats(priv->daisy_device, &priv->stats);
 
 	// Lock and set SPI bus speed:
 	daisy_spi = daisy_get_controller(priv->daisy_device);
