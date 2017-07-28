@@ -23,6 +23,7 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/platform_device.h>
+#include <linux/gpio.h>
 
 #include <linux/spi/spi.h>
 
@@ -30,30 +31,7 @@
 #include "tx_queue.h"
 #include "rx_queue.h"
 #include "bcm2835.h"
-
-#define daisy_SPI_MODE_BITS	(SPI_CPOL | SPI_CPHA | SPI_CS_HIGH \
-				| SPI_NO_CS | SPI_3WIRE)
-
-struct net_device_stats;
-
-struct daisy_spi {
-	struct platform_device  *pdev;
-	spinlock_t               transfer_lock;
-	struct clk              *clk;
-	uint32_t                 spi_hz;
-	bool                     speed_lock;
-};
-
-struct daisy_dev {
-	struct kobject          *kobj;
-	struct daisy_spi        *spi;
-	struct spi_device       *dev;
-	struct spi_master       *master;
-	struct rx_queue         *rx_queue;
-	struct tx_queue         *tx_queue;
-	struct net_device_stats *stats;
-	uint16_t                 slot;
-};
+#include "spi.h"
 
 static struct daisy_dev daisy_slots[N_SLOTS];
 
@@ -171,33 +149,80 @@ struct daisy_dev *daisy_open_device(uint16_t slot)
 
 	printk(KERN_DEBUG DRV_NAME ": Open handle for slot %d\n", slot);
 	if (slot >= N_SLOTS)
-		return NULL;
+		goto out;
 	dd = &daisy_slots[slot];
 	if ((dd->dev == NULL) || (dd->kobj != NULL))
-		return NULL;
+		goto out;
 
 	dd->stats = NULL;
+	dd->irq = 0;
+
 	dd->rx_queue = rx_queue_new(DEFAULT_RX_QUEUE_SIZE);
-	if (!dd->rx_queue) {
-		return NULL;
-	}
+	if (!dd->rx_queue)
+		goto out;
+
 	dd->tx_queue = tx_queue_new(DEFAULT_TX_QUEUE_SIZE);
-	if (!dd->tx_queue) {
-		rx_queue_del(dd->rx_queue); dd->rx_queue = NULL;
-		return NULL;
-	}
+	if (!dd->tx_queue)
+		goto out_rx_queue_del;
+
 	dd->kobj = kobject_get(&(dd->dev->dev.kobj));
+	if (!dd->kobj)
+		goto out_tx_queue_del;
+
+	if (gpio_request(GPIO_PIN, GPIO_DESC))
+		goto out_kobject_put;
+
+	dd->irq = gpio_to_irq(GPIO_PIN);
+	if (dd->irq < 0)
+		goto out_gpio_free;
+
+	if (request_irq(dd->irq, (irq_handler_t)irq_handler, IRQF_TRIGGER_FALLING,
+			GPIO_DESC, dd))
+		goto out_free_irq;
+
 	return dd;
+
+out_free_irq:
+	free_irq(dd->irq, dd);
+	dd->irq = 0;
+out_gpio_free:
+	gpio_free(GPIO_PIN);
+out_kobject_put:
+	kobject_put(dd->kobj);
+	dd->kobj = NULL;
+out_tx_queue_del:
+	tx_queue_del(dd->tx_queue);
+	dd->tx_queue = NULL;
+out_rx_queue_del:
+	rx_queue_del(dd->rx_queue);
+	dd->rx_queue = NULL;
+out:
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(daisy_open_device);
 
 void daisy_close_device(struct daisy_dev *dd)
 {
-	if ((dd != NULL) && (dd->kobj != NULL)) {
+	if (dd) {
 		printk(KERN_DEBUG DRV_NAME ": Close handle for slot %d\n", dd->slot);
-		kobject_put(dd->kobj); dd->kobj = NULL;
-		rx_queue_del(dd->rx_queue); dd->rx_queue = NULL;
-		tx_queue_del(dd->tx_queue); dd->tx_queue = NULL;
+		if (dd->irq) {
+			free_irq(dd->irq, dd);
+			dd->irq = 0;
+		}
+		dd->irq = 0;
+		gpio_free(GPIO_PIN);
+		if (dd->kobj) {
+			kobject_put(dd->kobj);
+			dd->kobj = NULL;
+		}
+		if (dd->rx_queue) {
+			rx_queue_del(dd->rx_queue);
+			dd->rx_queue = NULL;
+		}
+		if (dd->tx_queue) {
+			tx_queue_del(dd->tx_queue);
+			dd->tx_queue = NULL;
+		}
 		dd->stats = NULL;
 	}
 }

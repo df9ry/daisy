@@ -19,4 +19,5 @@ obj-m          := spi-daisy.o
 spi-daisy-objs += bcm2835.o
 spi-daisy-objs += rx_queue.o
 spi-daisy-objs += tx_queue.o
+spi-daisy-objs += intr.o
 spi-daisy-objs += main.o
