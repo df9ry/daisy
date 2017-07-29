@@ -47,6 +47,13 @@ void daisy_device_up(struct daisy_dev *dd)
 		return;
 	printk(KERN_DEBUG DRV_NAME ": Called daisy_up()\n");
 	dd->state = STATUS_IDLE;
+	ev_queue_init(&dd->evq);
+	tasklet_init(&dd->tasklet, tasklet, (unsigned long)dd);
+	dd->timeout = jiffies + DEFAULT_WATCHDOG;
+	init_timer(&dd->watchdog);
+	dd->watchdog.data = (unsigned long)dd;
+	dd->watchdog.expires = dd->timeout;
+	dd->watchdog.function = watchdog;
 	daisy_set_register8(dd, RFM22B_REG_DEVICE_STATUS, 0x00);
 	// Assure, that FIFO mode is selected:
 	daisy_set_mbits16(dd, RFM22B_REG_MODULATION_MODE,
@@ -71,6 +78,9 @@ void daisy_device_up(struct daisy_dev *dd)
 			RFM22B_ENCHIPRDY  |
 			RFM22B_ENRSSI     |
 			RFM22B_ENSWDET);
+	ev_queue_put(&dd->evq, EVQ_WATCHDOG);
+	tasklet_hi_schedule(&dd->tasklet);
+	add_timer(&dd->watchdog);
 }
 
 void daisy_device_down(struct daisy_dev *dd)
@@ -78,6 +88,9 @@ void daisy_device_down(struct daisy_dev *dd)
 	if (!dd)
 		return;
 	printk(KERN_DEBUG DRV_NAME ": Called daisy_down()\n");
+	del_timer(&dd->watchdog);
+	tasklet_kill(&dd->tasklet);
+	ev_queue_init(&dd->evq);
 	daisy_set_register16(dd, RFM22B_REG_INTERRUPT_ENABLE, 0x0000);
 	daisy_set_register16(dd, RFM22B_REG_INTERRUPT_STATUS, 0x0000);
 	daisy_set_register16(dd, RFM22B_REG_OPERATING_MODE,   0x0000);
@@ -199,6 +212,7 @@ struct daisy_dev *daisy_open_device(uint16_t slot)
 	dd->stats = NULL;
 	dd->irq = 0;
 	dd->state = STATUS_IDLE;
+	ev_queue_init(&dd->evq);
 
 	dd->rx_queue = rx_queue_new(DEFAULT_RX_QUEUE_SIZE);
 	if (!dd->rx_queue)
@@ -270,6 +284,7 @@ void daisy_close_device(struct daisy_dev *dd)
 			dd->tx_queue = NULL;
 		}
 		dd->stats = NULL;
+		ev_queue_init(&dd->evq);
 	}
 }
 EXPORT_SYMBOL_GPL(daisy_close_device);
@@ -302,7 +317,7 @@ void daisy_transfer(struct daisy_dev *dd,
 				  	  	   size_t     cb)
 {
 	struct daisy_spi *spi = dd->spi;
-	unsigned long flags;
+	unsigned long     flags;
 
 	spin_lock_irqsave(&spi->transfer_lock, flags);
 	bcm2835_spi_transfernb(tx, rx, cb);

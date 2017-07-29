@@ -76,15 +76,14 @@ void rx_queue_del(struct rx_queue *q);
  */
 static inline struct rx_entry *rx_entry_new(struct rx_queue *q) {
 	struct rx_entry  *e = NULL;
-	unsigned long     flags;
 
-	spin_lock_irqsave(&q->lock, flags);
+	spin_lock(&q->lock);
 	/**/ if (!list_empty(&q->free)) {
 	/**/ 	struct list_head *_e = q->free.next;
 	/**/ 	e = list_entry(_e, struct rx_entry, list);
 	/**/ 	list_del_init(_e);
 	/**/ }
-	spin_unlock_irqrestore(&q->lock, flags);
+	spin_unlock(&q->lock);
 	return e;
 }
 
@@ -95,11 +94,10 @@ static inline struct rx_entry *rx_entry_new(struct rx_queue *q) {
  */
 static inline void rx_entry_del(struct rx_entry *e) {
 	struct rx_queue *q = e->queue;
-	unsigned long    flags;
 
-	spin_lock_irqsave(&q->lock, flags);
+	spin_lock(&q->lock);
 	/**/ list_add_tail(&q->free, &e->list);
-	spin_unlock_irqrestore(&q->lock, flags);
+	spin_unlock(&q->lock);
 }
 
 /**
@@ -109,11 +107,10 @@ static inline void rx_entry_del(struct rx_entry *e) {
  */
 static inline void rx_entry_put(struct rx_entry *e) {
 	struct rx_queue *q = e->queue;
-	unsigned long    flags;
 
-	spin_lock_irqsave(&q->lock, flags);
+	spin_lock(&q->lock);
 	/**/ list_add_tail(&q->fifo, &e->list);
-	spin_unlock_irqrestore(&q->lock, flags);
+	spin_unlock(&q->lock);
 	up(&q->sem);
 }
 
@@ -128,17 +125,16 @@ static inline void rx_entry_put(struct rx_entry *e) {
 static inline struct rx_entry *rx_entry_get(struct rx_queue *q) {
 	struct rx_entry  *e = NULL;
 	int               d = down_interruptible(&q->sem);
-	unsigned long     flags;
 
 	if (d)
 		return NULL;
-	spin_lock_irqsave(&q->lock, flags);
+	spin_lock(&q->lock);
 	/**/ if (!list_empty(&q->fifo)) {
 	/**/ 	struct list_head *_e = q->fifo.next;
 	/**/ 	e = list_entry(_e, struct rx_entry, list);
 	/**/ 	list_del_init(_e);
 	/**/ }
-	spin_unlock_irqrestore(&q->lock, flags);
+	spin_unlock(&q->lock);
 	return e;
 }
 

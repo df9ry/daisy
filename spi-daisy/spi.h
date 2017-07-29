@@ -20,8 +20,10 @@
 #define _SPI_H_
 
 #include <linux/interrupt.h>
+#include <linux/timer.h>
 
 #include "bcm2835_hw.h"
+#include "ev_queue.h"
 
 #define GPIO_PIN     RPI_GPIO_P1_08
 #define GPIO_DESC    "DAISY Interrupt line"
@@ -115,8 +117,14 @@ struct daisy_dev {
 	uint16_t                 slot;
 	short int                irq;
 	enum automaton_state     state;
+	struct ev_queue          evq;
+	struct tasklet_struct    tasklet;
+	struct timer_list        watchdog;
+	unsigned long            timeout;
 };
 
-extern irqreturn_t irq_handler(int irq, void *_dev, struct pt_regs *regs);
+extern irqreturn_t irq_handler(int irq, void *_dd, struct pt_regs *regs);
+extern void tasklet(unsigned long _dd);
+extern void watchdog(unsigned long _dd);
 
 #endif //_SPI_H_//

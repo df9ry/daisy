@@ -78,17 +78,16 @@ void tx_queue_del(struct tx_queue *q);
 static inline struct tx_entry *tx_entry_new(struct tx_queue *q) {
 	struct tx_entry  *e = NULL;
 	int               d = down_interruptible(&q->sem);
-	unsigned long     flags;
 
 	if (d)
 		return NULL;
-	spin_lock_irqsave(&q->lock, flags);
+	spin_lock(&q->lock);
 	/**/ if (!list_empty(&q->free)) {
 	/**/ 	struct list_head *_e = q->free.next;
 	/**/ 	e = list_entry(_e, struct tx_entry, list);
 	/**/ 	list_del_init(_e);
 	/**/ }
-	spin_unlock_irqrestore(&q->lock, flags);
+	spin_unlock(&q->lock);
 	return e;
 }
 
@@ -102,15 +101,14 @@ static inline struct tx_entry *tx_entry_new(struct tx_queue *q) {
  */
 static inline struct tx_entry *tx_entry_try_new(struct tx_queue *q) {
 	struct tx_entry  *e = NULL;
-	unsigned long     flags;
 
-	spin_lock_irqsave(&q->lock, flags);
+	spin_lock(&q->lock);
 	/**/ if (!list_empty(&q->free)) {
 	/**/ 	struct list_head *_e = q->free.next;
 	/**/ 	e = list_entry(_e, struct tx_entry, list);
 	/**/ 	list_del_init(_e);
 	/**/ }
-	spin_unlock_irqrestore(&q->lock, flags);
+	spin_unlock(&q->lock);
 	return e;
 }
 
@@ -121,11 +119,10 @@ static inline struct tx_entry *tx_entry_try_new(struct tx_queue *q) {
  */
 static inline void tx_entry_del(struct tx_entry *e) {
 	struct tx_queue *q = e->queue;
-	unsigned long    flags;
 
-	spin_lock_irqsave(&q->lock, flags);
+	spin_lock(&q->lock);
 	/**/ list_add_tail(&q->free, &e->list);
-	spin_unlock_irqrestore(&q->lock, flags);
+	spin_unlock(&q->lock);
 	up(&q->sem);
 }
 
@@ -136,14 +133,13 @@ static inline void tx_entry_del(struct tx_entry *e) {
  */
 static inline void tx_entry_put(struct tx_entry *e, bool prio) {
 	struct tx_queue *q = e->queue;
-	unsigned long    flags;
 
-	spin_lock_irqsave(&q->lock, flags);
+	spin_lock(&q->lock);
 	/**/ if (prio)
 	/**/ 	list_add_tail(&q->prio, &e->list);
 	/**/ else
 	/**/ 	list_add_tail(&q->fifo, &e->list);
-	spin_unlock_irqrestore(&q->lock, flags);
+	spin_unlock(&q->lock);
 }
 
 /**
@@ -156,9 +152,8 @@ static inline void tx_entry_put(struct tx_entry *e, bool prio) {
  */
 static inline struct tx_entry *tx_entry_get(struct tx_queue *q) {
 	struct tx_entry  *e = NULL;
-	unsigned long     flags;
 
-	spin_lock_irqsave(&q->lock, flags);
+	spin_lock(&q->lock);
 	/**/ if (!list_empty(&q->prio)) {
 	/**/ 	struct list_head *_e = q->prio.next;
 	/**/ 	e = list_entry(_e, struct tx_entry, list);
@@ -168,7 +163,7 @@ static inline struct tx_entry *tx_entry_get(struct tx_queue *q) {
 	/**/ 	e = list_entry(_e, struct tx_entry, list);
 	/**/ 	list_del_init(_e);
 	/**/ }
-	spin_unlock_irqrestore(&q->lock, flags);
+	spin_unlock(&q->lock);
 	return e;
 }
 

@@ -149,6 +149,9 @@ static int daisy_up(struct net_device *dev)
 	// Start Receive:
 	queue_work(priv->workqueue, &priv->work);
 
+	// Start hardware:
+	daisy_device_up(priv->daisy_device);
+
 	erc = 0;
 	goto out_exit;
 
@@ -167,6 +170,7 @@ static int daisy_down(struct net_device *dev)
 		struct daisy_priv *priv = netdev_priv(dev);
 
 		printk(KERN_DEBUG "daisy: Net device down \"%s\"\n", dev->name);
+		daisy_device_down(priv->daisy_device);
 		del_timer(&priv->timer);
 		netif_stop_queue(dev);
 

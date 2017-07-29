@@ -30,7 +30,7 @@
 
 #define DEFAULT_RX_QUEUE_SIZE 64
 #define DEFAULT_TX_QUEUE_SIZE 64
-#define DEFAULT_PUMP_INTERVAL 10
+#define DEFAULT_WATCHDOG      10
 
 struct daisy_dev;
 struct daisy_spi;
