@@ -52,7 +52,7 @@ int trace_init(void)
 	for (i = 0; i < TRACE_QUEUE_SIZE; ++i) {
 		struct trace_entry *e = &__trace.queue.data[i];
 		INIT_LIST_HEAD(&e->list);
-		list_add_tail(&__trace.queue.free, &e->list);
+		list_add_tail(&e->list, &__trace.queue.free);
 	} // end for //
 	INIT_WORK(&__trace.work, __worker);
 	__trace.workqueue = create_singlethread_workqueue("spi-daisy trace");
@@ -66,11 +66,10 @@ void trace_destroy(void)
 {
 	struct completion completion;
 
-	spin_lock(&__trace.queue.lock);
-	/**/trace("Complete");
-	/**/ __trace.queue.completion = &completion;
-	/**/ up(&__trace.queue.sem);
-	spin_unlock(&__trace.queue.lock);
+	init_completion(&completion);
+	trace("Complete");
+	__trace.queue.completion = &completion;
+	up(&__trace.queue.sem);
 	wait_for_completion(&completion);
 	if (__trace.workqueue) {
 		flush_workqueue(__trace.workqueue);

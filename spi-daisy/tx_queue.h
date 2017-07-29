@@ -47,6 +47,7 @@ struct tx_queue {
 	struct list_head   prio;
 	struct semaphore   sem;
 	spinlock_t         lock;
+	size_t             size;
 	struct tx_entry    data[0]; // Hack: dynamically allocation
 };
 
@@ -77,7 +78,7 @@ void tx_queue_del(struct tx_queue *q);
  */
 static inline struct tx_entry *tx_entry_new(struct tx_queue *q) {
 	struct tx_entry  *e = NULL;
-	int               d = down_interruptible(&q->sem);
+	int d = down_interruptible(&q->sem);
 
 	if (d)
 		return NULL;
@@ -88,6 +89,10 @@ static inline struct tx_entry *tx_entry_new(struct tx_queue *q) {
 	/**/ 	list_del_init(_e);
 	/**/ }
 	spin_unlock(&q->lock);
+	if (!e)
+		printk(KERN_ERR "spi-daisy: tx_entry_new() inconsistency\n");
+	printk(KERN_DEBUG "spi-daisy: tx_entry_new() semaphore is %i\n",
+			q->sem.count);
 	return e;
 }
 
@@ -103,12 +108,14 @@ static inline struct tx_entry *tx_entry_try_new(struct tx_queue *q) {
 	struct tx_entry  *e = NULL;
 
 	spin_lock(&q->lock);
-	/**/ if (!list_empty(&q->free)) {
+	/**/ if (!(down_trylock(&q->sem) || list_empty(&q->free))) {
 	/**/ 	struct list_head *_e = q->free.next;
 	/**/ 	e = list_entry(_e, struct tx_entry, list);
 	/**/ 	list_del_init(_e);
 	/**/ }
 	spin_unlock(&q->lock);
+	printk(KERN_DEBUG "spi-daisy: tx_entry_try_new() semaphore is %i\n",
+			q->sem.count);
 	return e;
 }
 
@@ -121,9 +128,9 @@ static inline void tx_entry_del(struct tx_entry *e) {
 	struct tx_queue *q = e->queue;
 
 	spin_lock(&q->lock);
-	/**/ list_add_tail(&q->free, &e->list);
+	/**/ list_add_tail(&e->list, &q->free);
+	/**/ up(&q->sem);
 	spin_unlock(&q->lock);
-	up(&q->sem);
 }
 
 /**
@@ -136,9 +143,9 @@ static inline void tx_entry_put(struct tx_entry *e, bool prio) {
 
 	spin_lock(&q->lock);
 	/**/ if (prio)
-	/**/ 	list_add_tail(&q->prio, &e->list);
+	/**/ 	list_add_tail(&e->list, &q->prio);
 	/**/ else
-	/**/ 	list_add_tail(&q->fifo, &e->list);
+	/**/ 	list_add_tail(&e->list, &q->fifo);
 	spin_unlock(&q->lock);
 }
 

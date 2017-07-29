@@ -23,14 +23,16 @@
 
 #define DRV_NAME	"spi-daisy"
 
-#define MIN_SPEED_HZ       50000
-#define MAX_SPEED_HZ     5000000
-#define N_SLOTS                2
-#define MAX_PKG_LEN          256
+#define MIN_SPEED_HZ         50000
+#define MAX_SPEED_HZ       5000000
+#define N_SLOTS                  2
+#define MAX_PKG_LEN            256
 
-#define DEFAULT_RX_QUEUE_SIZE 64
-#define DEFAULT_TX_QUEUE_SIZE 64
-#define DEFAULT_WATCHDOG      10
+#define DEFAULT_RX_QUEUE_SIZE   16
+#define DEFAULT_TX_QUEUE_SIZE   16
+#define DEFAULT_TX_LOW_WATER_DN  2
+#define DEFAULT_TX_LOW_WATER_UP  6
+#define DEFAULT_WATCHDOG        10
 
 struct daisy_dev;
 struct daisy_spi;
@@ -293,5 +295,23 @@ static inline uint16_t daisy_get_register16(struct daisy_dev *dd,
 	daisy_transfer(dd, tx, rx, 3);
 	return (rx[1] << 8) | rx[2];
 }
+
+/**
+ * Check if too less entries are available for transmit so
+ * transmitting shall be stopped.
+ * @param q Pointer to the tx_queue.
+ * @return True if too less entries are available in the TX
+ *         queue.
+ */
+extern bool tx_low_water_dn(struct daisy_dev *dd);
+
+/**
+ * Check if enough entries are available for transmit so
+ * transmitting can be restarted.
+ * @param q Pointer to the tx_queue.
+ * @return True if enough entries are available in the TX
+ *         queue.
+ */
+extern bool tx_low_water_up(struct daisy_dev *dd);
 
 #endif /* _SPI_DAISY_H_ */

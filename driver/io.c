@@ -25,20 +25,6 @@
 #include "daisy.h"
 #include "spi-daisy.h"
 
-static void on_timer(unsigned long _dev) {
-	struct net_device *dev = (struct net_device *)_dev;
-	struct daisy_priv *priv = netdev_priv(dev);
-
-	if ((priv == NULL) || (priv->completion != NULL))
-		return;
-	if (daisy_can_write(priv->daisy_device)) {
-		netif_wake_queue(dev);
-	} else {
-		priv->timer.expires = jiffies + DEFAULT_TIMEOUT;
-		add_timer(&priv->timer);
-	}
-}
-
 /*
  * Transmit a packet (called by the kernel)
  */
@@ -53,18 +39,22 @@ int daisy_tx(struct sk_buff *skb, struct net_device *dev)
 	if (erc < 0) {
 		printk(KERN_ERR "daisy: TX %d octets failed with erc %d\n",
 				skb->len, erc);
-		 netif_stop_queue(dev);
-		 priv->timer.expires = jiffies + DEFAULT_TIMEOUT;
-		 priv->timer.function = on_timer;
-		 priv->timer.data = (unsigned long)dev;
-		 add_timer(&priv->timer);
-		 return erc;
+		dev_kfree_skb(skb);
+		priv->stats.tx_dropped ++;
+		goto out;
 	}
 	if (printk_ratelimit())
 		printk(KERN_DEBUG "daisy: TX %d octets\n", skb->len);
 	dev_trans_start(dev);
 	priv->stats.tx_packets ++;
 	priv->stats.tx_bytes += skb->len;
+
+out:
+	if (tx_low_water_dn(priv->daisy_device) && !priv->stalled) {
+		printk(KERN_INFO "daisy: TX queue runs low - stop transmit\n");
+		netif_stop_queue(dev);
+		priv->stalled = 1;
+	}
 	return 0;
 }
 
@@ -73,8 +63,15 @@ int daisy_tx(struct sk_buff *skb, struct net_device *dev)
  */
 void daisy_tx_timeout (struct net_device *dev)
 {
-	if (printk_ratelimit())
-		printk(KERN_DEBUG "daisy: TX timeout at %ld\n", jiffies);
+	struct daisy_priv *priv = netdev_priv(dev);
+
+	if (!priv->stalled)
+		return;
+	if (tx_low_water_up(priv->daisy_device)) {
+		printk(KERN_INFO "daisy: Resume transmit\n");
+		priv->stalled = 0;
+		netif_wake_queue(dev);
+	}
 }
 
 /**

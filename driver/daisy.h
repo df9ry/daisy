@@ -23,7 +23,6 @@
 #include <linux/netdevice.h>
 #include <linux/workqueue.h>
 #include <linux/completion.h>
-#include <linux/timer.h>
 
 /*
  * Forward declaration of the daisy device handle.
@@ -51,7 +50,7 @@ struct daisy_priv {
 	struct workqueue_struct *workqueue;
 	struct work_struct       work;
 	struct completion       *completion;
-	struct timer_list        timer;
+	bool                     stalled;
 };
 
 /*

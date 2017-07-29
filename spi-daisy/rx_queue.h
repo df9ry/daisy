@@ -46,6 +46,7 @@ struct rx_queue {
 	struct list_head   fifo;
 	struct semaphore   sem;
 	spinlock_t         lock;
+	size_t             size;
 	struct rx_entry    data[0]; // Hack: dynamically allocation
 };
 
@@ -96,7 +97,7 @@ static inline void rx_entry_del(struct rx_entry *e) {
 	struct rx_queue *q = e->queue;
 
 	spin_lock(&q->lock);
-	/**/ list_add_tail(&q->free, &e->list);
+	/**/ list_add_tail(&e->list, &q->free);
 	spin_unlock(&q->lock);
 }
 
@@ -109,9 +110,9 @@ static inline void rx_entry_put(struct rx_entry *e) {
 	struct rx_queue *q = e->queue;
 
 	spin_lock(&q->lock);
-	/**/ list_add_tail(&q->fifo, &e->list);
+	/**/ list_add_tail(&e->list, &q->fifo);
+	/**/ up(&q->sem);
 	spin_unlock(&q->lock);
-	up(&q->sem);
 }
 
 /**
@@ -135,6 +136,10 @@ static inline struct rx_entry *rx_entry_get(struct rx_queue *q) {
 	/**/ 	list_del_init(_e);
 	/**/ }
 	spin_unlock(&q->lock);
+	if (!e)
+		printk(KERN_ERR "spi-daisy: rx_entry_get() inconsistency\n");
+	printk(KERN_DEBUG "spi-daisy: rx_entry_get() semaphore is %i\n",
+			q->sem.count);
 	return e;
 }
 

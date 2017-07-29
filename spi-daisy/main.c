@@ -131,9 +131,8 @@ int daisy_write(struct daisy_dev *dd, struct sk_buff *skb, bool priority)
 	if (!skb)
 		return -EINVAL;
 	if (skb->len > MAX_PKG_LEN) {
-		if (dd->stats) {
+		if (dd->stats)
 			dd->stats->tx_errors ++;
-		}
 		return -E2BIG;
 	}
 	e = tx_entry_new(dd->tx_queue);
@@ -267,7 +266,6 @@ EXPORT_SYMBOL_GPL(daisy_open_device);
 void daisy_close_device(struct daisy_dev *dd)
 {
 	if (dd) {
-		printk(KERN_DEBUG DRV_NAME ": Close handle for slot %d\n", dd->slot);
 		if (dd->irq) {
 			free_irq(dd->irq, dd);
 			dd->irq = 0;
@@ -287,7 +285,6 @@ void daisy_close_device(struct daisy_dev *dd)
 			dd->tx_queue = NULL;
 		}
 		dd->stats = NULL;
-		ev_queue_init(&dd->evq);
 	}
 }
 EXPORT_SYMBOL_GPL(daisy_close_device);
@@ -313,6 +310,20 @@ uint32_t daisy_set_speed(struct daisy_spi *spi, uint32_t spi_hz)
 	return cdiv ? (clk_hz / cdiv) : (clk_hz / 65536);
 }
 EXPORT_SYMBOL_GPL(daisy_set_speed);
+
+bool tx_low_water_dn(struct daisy_dev *dd) {
+	if (!dd)
+		return 0;
+	return (dd->tx_queue->sem.count < DEFAULT_TX_LOW_WATER_DN);
+}
+EXPORT_SYMBOL_GPL(tx_low_water_dn);
+
+bool tx_low_water_up(struct daisy_dev *dd) {
+	if (!dd)
+		return 0;
+	return (dd->tx_queue->sem.count > DEFAULT_TX_LOW_WATER_UP);
+}
+EXPORT_SYMBOL_GPL(tx_low_water_up);
 
 void daisy_transfer(struct daisy_dev *dd,
 			const volatile uint8_t   *tx,
@@ -487,15 +498,18 @@ static int daisy_spi_remove(struct platform_device *pdev)
 	clk_disable_unprepare(bs->clk);
 
 	for (i = 0; i < N_SLOTS; ++i) {
+		printk(KERN_DEBUG DRV_NAME ": Close daisy device %i\n", i);
 		daisy_close_device(&daisy_slots[i]);
 		daisy_slots[i].dev = NULL;
 	}
 
+	printk(KERN_DEBUG DRV_NAME ": bcm2835_spi_end()\n");
 	bcm2835_spi_end();
+	printk(KERN_DEBUG DRV_NAME ": bcm2835_release()\n");
 	bcm2835_release();
-
+	printk(KERN_DEBUG DRV_NAME ": trace_destroy()\n");
 	trace_destroy();
-
+	printk(KERN_DEBUG DRV_NAME ": spi_remove() exit\n");
 	return 0;
 }
 

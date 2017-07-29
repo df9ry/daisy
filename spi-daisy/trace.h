@@ -65,14 +65,14 @@ extern struct trace_struct {
 #ifdef Debug
 static inline void __func_trace0(struct trace_entry *e)
 {
-	printk(KERN_DEBUG "spi-daisy trace %s\n", e->msg);
+	printk(KERN_DEBUG "spi-daisy: Trace %s\n", e->msg);
 }
 #endif
 
 #ifdef Debug
 static inline void __func_trace1(struct trace_entry *e)
 {
-	printk(KERN_DEBUG "spi-daisy trace %s [%d|0x%x]\n",
+	printk(KERN_DEBUG "spi-daisy: Trace %s [%d|0x%x]\n",
 							e->msg, e->x1, e->x1);
 }
 #endif
@@ -80,7 +80,7 @@ static inline void __func_trace1(struct trace_entry *e)
 #ifdef Debug
 static inline void __func_trace2(struct trace_entry *e)
 {
-	printk(KERN_DEBUG "spi-daisy trace %s [%d|0x%x] [%d|0x%x]\n",
+	printk(KERN_DEBUG "spi-daisy: Trace %s [%d|0x%x] [%d|0x%x]\n",
 							e->msg, e->x1, e->x1, e->x2, e->x2);
 }
 #endif

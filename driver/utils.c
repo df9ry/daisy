@@ -115,7 +115,8 @@ int daisy_change_mtu(struct net_device *dev, int new_mtu)
 	spinlock_t *lock = &priv->lock;
 
 	/* check ranges */
-	if ((new_mtu < 68) || (new_mtu > 1500))
+	//if ((new_mtu < 68) || (new_mtu > 1500))
+	if ((new_mtu < 68) || (new_mtu > 240))
 		return -EINVAL;
 	/*
 	 * Do anything you need, and the accept the value

@@ -26,6 +26,7 @@
 #define IO_MAX 64
 
 void tasklet(unsigned long _dd) {
+	u32 dropped;
 	struct daisy_dev *dd = (struct daisy_dev *)_dd;
 	u8 event = ev_queue_get(&dd->evq);
 	while (event != EVQ_EOF) {
@@ -82,11 +83,14 @@ void tasklet(unsigned long _dd) {
 			trace("FFERR");
 			break;
 		case EVQ_WATCHDOG:
-			trace("WATCHDOG");
+			//trace("WATCHDOG");
 			break;
 		} // end switch //
 		event = ev_queue_get(&dd->evq);
 	} // end while //
+	dropped = ev_queue_overruns(&dd->evq);
+	if (dropped)
+		printk(KERN_INFO "spi-dev: dropped %d events\n", dropped);
 }
 
 void watchdog(unsigned long _dd) {

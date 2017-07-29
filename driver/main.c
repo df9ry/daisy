@@ -95,7 +95,6 @@ static int daisy_up(struct net_device *dev)
 
 	printk(KERN_DEBUG "daisy: Net device up \"%s\"\n", dev->name);
 	priv->completion = NULL;
-	init_timer(&priv->timer);
 
 	// Open daisy device:
 	priv->daisy_device = daisy_open_device(priv->slot);
@@ -169,12 +168,12 @@ static int daisy_down(struct net_device *dev)
 	if (dev) {
 		struct daisy_priv *priv = netdev_priv(dev);
 
-		printk(KERN_DEBUG "daisy: Net device down \"%s\"\n", dev->name);
-		daisy_device_down(priv->daisy_device);
-		del_timer(&priv->timer);
+		printk(KERN_DEBUG "daisy: Net device down: \"%s\"\n", dev->name);
 		netif_stop_queue(dev);
+		daisy_device_down(priv->daisy_device);
 
 		// Stop the receive loop:
+		printk(KERN_DEBUG "daisy: Stop receive loop: \"%s\"\n", dev->name);
 		if (priv->workqueue) {
 			struct completion completion;
 
@@ -196,9 +195,14 @@ static int daisy_down(struct net_device *dev)
 			// Unlock bus speed:
 			if (daisy_spi)
 				daisy_unlock_speed(daisy_spi);
+			printk(KERN_DEBUG "daisy: Close daisy device: \"%s\"\n", dev->name);
 			daisy_close_device(priv->daisy_device);
 			priv->daisy_device = NULL;
 		}
+
+		printk(KERN_DEBUG
+				"daisy: Network device successfully shut down: \"%s\"\n",
+				dev->name);
 	}
 	return 0;
 }
@@ -217,7 +221,6 @@ static void daisy_cleanup(void)
 		if (rd->net_device) {
 			printk(KERN_DEBUG "daisy: Close net device \"%s\"\n",
 					rd->net_device->name);
-			daisy_down(rd->net_device);
 			unregister_netdev(rd->net_device);
 			printk(KERN_DEBUG "daisy: Free net device \"%s\"\n",
 					rd->net_device->name);

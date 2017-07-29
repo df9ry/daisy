@@ -25,57 +25,46 @@
 
 struct rx_queue *rx_queue_new(size_t size) {
 	int    i;
-	struct rx_queue *q = kmalloc(
-			sizeof(struct rx_queue) + sizeof(struct rx_entry) * size,
-			GFP_KERNEL
-	);
+	size_t cb_mem = sizeof(struct rx_queue) + sizeof(struct rx_entry) * size;
+	struct rx_queue *q = kmalloc(cb_mem, GFP_KERNEL);
 
 	if (!q) {
 		printk(KERN_ERR "spi-daisy: Unable to alloc rx_queue()\n");
 		return NULL;
 	}
 
+	memset(q, 0x00, cb_mem);
+
 	INIT_LIST_HEAD(&q->free);
 	INIT_LIST_HEAD(&q->fifo);
-	sema_init(&q->sem, 0);
+ 	sema_init(&q->sem, 0);
 	spin_lock_init(&q->lock);
+	q->size = size;
 	for (i = 0; i < size; i++) {
 		struct rx_entry *e = &q->data[i];
 		INIT_LIST_HEAD(&e->list);
 		e->queue = q;
-		e->skb = NULL;
-		list_add_tail(&q->free, &e->list);
-	} //end for //
-	for (i = 0; i < size; i++) {
-		struct rx_entry *e = &q->data[i];
 		e->skb = dev_alloc_skb(MAX_PKG_LEN+2);
 		if (!e->skb) {
 			rx_queue_del(q);
 			return NULL;
 		}
-	} // end for //
+		list_add_tail(&e->list, &q->free);
+	} //end for //
 	return q;
 }
 
 void rx_queue_del(struct rx_queue *q) {
-	struct rx_entry *e;
+	int    i;
+
 	if (!q)
 		return;
-	e = rx_entry_get(q);
-	while (e) {
+	for (i = 0; i < q->size; i++) {
+		struct rx_entry *e = &q->data[i];
 		if (e->skb) {
 			dev_kfree_skb(e->skb);
 			e->skb = NULL;
 		}
-		e = rx_entry_get(q);
-	} // end while //
-	e = rx_entry_new(q);
-	while (e) {
-		if (e->skb) {
-			dev_kfree_skb(e->skb);
-			e->skb = NULL;
-		}
-		e = rx_entry_new(q);
-	} // end while //
+	} // end for //
 	kfree(q);
 }
