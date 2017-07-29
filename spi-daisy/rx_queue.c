@@ -44,6 +44,7 @@ struct rx_queue *rx_queue_new(size_t size) {
 		INIT_LIST_HEAD(&e->list);
 		e->queue = q;
 		e->skb = NULL;
+		list_add_tail(&q->free, &e->list);
 	} //end for //
 	for (i = 0; i < size; i++) {
 		struct rx_entry *e = &q->data[i];

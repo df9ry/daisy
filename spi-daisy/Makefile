@@ -29,7 +29,8 @@ endif
 	$(MAKE) CONFIG_DEBUG_SECTION_MISMATCH=y \
 			ARCH=arm CROSS_COMPILE=$(TOOLSET_PREFIX) \
 		-C $(KERNEL_SRC) \
-		M=${CURDIR}/$(CONFIGURATION) modules
+		M=${CURDIR}/$(CONFIGURATION) modules \
+		EXTRA_CFLAGS=-D$(CONFIGURATION)
 	@echo 'Finished building module spi-daisy'
 	-@echo ' '
 

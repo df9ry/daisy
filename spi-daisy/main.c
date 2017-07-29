@@ -32,6 +32,7 @@
 #include "rx_queue.h"
 #include "bcm2835.h"
 #include "spi.h"
+#include "trace.h"
 
 static struct daisy_dev daisy_slots[N_SLOTS];
 
@@ -45,7 +46,7 @@ void daisy_device_up(struct daisy_dev *dd)
 {
 	if (!dd)
 		return;
-	printk(KERN_DEBUG DRV_NAME ": Called daisy_up()\n");
+	printk(KERN_DEBUG DRV_NAME ": Called daisy_device_up()\n");
 	dd->state = STATUS_IDLE;
 	ev_queue_init(&dd->evq);
 	tasklet_init(&dd->tasklet, tasklet, (unsigned long)dd);
@@ -82,12 +83,13 @@ void daisy_device_up(struct daisy_dev *dd)
 	tasklet_hi_schedule(&dd->tasklet);
 	add_timer(&dd->watchdog);
 }
+EXPORT_SYMBOL_GPL(daisy_device_up);
 
 void daisy_device_down(struct daisy_dev *dd)
 {
 	if (!dd)
 		return;
-	printk(KERN_DEBUG DRV_NAME ": Called daisy_down()\n");
+	printk(KERN_DEBUG DRV_NAME ": Called daisy_device_down()\n");
 	del_timer(&dd->watchdog);
 	tasklet_kill(&dd->tasklet);
 	ev_queue_init(&dd->evq);
@@ -95,6 +97,7 @@ void daisy_device_down(struct daisy_dev *dd)
 	daisy_set_register16(dd, RFM22B_REG_INTERRUPT_STATUS, 0x0000);
 	daisy_set_register16(dd, RFM22B_REG_OPERATING_MODE,   0x0000);
 }
+EXPORT_SYMBOL_GPL(daisy_device_down);
 
 void daisy_register_stats(struct daisy_dev        *dd,
 						  struct net_device_stats *stats)
@@ -401,6 +404,15 @@ static int daisy_spi_probe(struct platform_device *pdev)
 	int                 err, i;
 
 	printk(KERN_DEBUG DRV_NAME ": Called spi_probe()\n");
+
+	// Initialize tracing:
+	err = trace_init();
+	if (err) {
+		printk(KERN_ERR DRV_NAME ": trace_init failed with erc=%d\n", err);
+		return err;
+	}
+
+	// Allocate master:
 	master = spi_alloc_master(&pdev->dev, sizeof(*bs));
 	if (!master) {
 		printk(KERN_ERR DRV_NAME ": spi_alloc_master() failed\n");
@@ -481,6 +493,8 @@ static int daisy_spi_remove(struct platform_device *pdev)
 
 	bcm2835_spi_end();
 	bcm2835_release();
+
+	trace_destroy();
 
 	return 0;
 }

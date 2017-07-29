@@ -21,6 +21,7 @@
 
 #include "spi-daisy.h"
 #include "spi.h"
+#include "trace.h"
 
 #define IO_MAX 64
 
@@ -28,7 +29,62 @@ void tasklet(unsigned long _dd) {
 	struct daisy_dev *dd = (struct daisy_dev *)_dd;
 	u8 event = ev_queue_get(&dd->evq);
 	while (event != EVQ_EOF) {
-		///TODO: Process event:
+		switch (event) {
+		case EVQ_EOF:
+			trace("EOF");
+			break;
+		case EVQ_POR:
+			trace("POR");
+			break;
+		case EVQ_CHIPRDY:
+			trace("CHIPRDY");
+			break;
+		case EVQ_LBD:
+			trace("LBD");
+			break;
+		case EVQ_WUT:
+			trace("WUT");
+			break;
+		case EVQ_RSSI:
+			trace("RSSI");
+			break;
+		case EVQ_PREAINVAL:
+			trace("PREAINVAL");
+			break;
+		case EVQ_PREAVAL:
+			trace("PREAVAL");
+			break;
+		case EVQ_SWDET:
+			trace("SWDET");
+			break;
+		case EVQ_CRCERROR:
+			trace("CRCERROR");
+			break;
+		case EVQ_PKVALID:
+			trace("PKVALID");
+			break;
+		case EVQ_PKSENT:
+			trace("PKSENT");
+			break;
+		case EVQ_EXT:
+			trace("EXT");
+			break;
+		case EVQ_RXFFAFUL:
+			trace("RXFFAFUL");
+			break;
+		case EVQ_TXFFAEM:
+			trace("TXFFAEM");
+			break;
+		case EVQ_TXFFAFULL:
+			trace("TXFFAFULL");
+			break;
+		case EVQ_FFERR:
+			trace("FFERR");
+			break;
+		case EVQ_WATCHDOG:
+			trace("WATCHDOG");
+			break;
+		} // end switch //
 		event = ev_queue_get(&dd->evq);
 	} // end while //
 }

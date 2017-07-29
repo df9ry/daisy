@@ -43,6 +43,7 @@ struct tx_queue *tx_queue_new(size_t size) {
 		struct tx_entry *e = &q->data[i];
 		INIT_LIST_HEAD(&e->list);
 		e->queue = q;
+		list_add_tail(&q->free, &e->list);
 	} //end for //
 
 	return q;
