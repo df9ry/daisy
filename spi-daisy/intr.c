@@ -85,6 +85,12 @@ void tasklet(unsigned long _dd) {
 		case EVQ_WATCHDOG:
 			//trace("WATCHDOG");
 			break;
+		case EVQ_INTERRUPT:
+			trace("INTERRUPT");
+			break;
+		default:
+			trace1("UNKNOWN", event);
+			break;
 		} // end switch //
 		event = ev_queue_get(&dd->evq);
 	} // end while //
@@ -141,12 +147,6 @@ irqreturn_t irq_handler(int irq, void *_dd, struct pt_regs *regs)
 	/****/ if (is & RFM22B_TXFFAFULL) _ev_queue_put(evq, EVQ_TXFFAFULL);
 	/****/ if (is & RFM22B_FFERR    ) _ev_queue_put(evq, EVQ_FFERR    );
 	/****/ dd->timeout = jiffies + DEFAULT_WATCHDOG;
-	/****/ if (timer_pending(&dd->watchdog)) {
-	/****/ 		mod_timer(&dd->watchdog, dd->timeout);
-	/****/ } else {
-	/****/ 		dd->watchdog.expires = dd->timeout;
-	/****/ 		add_timer(&dd->watchdog);
-	/****/ }
 	/**/ spin_unlock_irqrestore(&evq->lock, flags2);
 	local_irq_restore(flags1);
 	tasklet_hi_schedule(&dd->tasklet);

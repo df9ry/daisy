@@ -82,6 +82,7 @@ static void daisy_init(struct net_device *dev)
 	ether_setup(dev);
 	dev->watchdog_timeo = timeout;
 	dev->netdev_ops     = &daisy_netdev_ops;
+	dev->mtu            = 240;
 	printk(KERN_DEBUG "daisy: Net device has been setup\n");
 }
 

@@ -25,8 +25,8 @@
 #include "bcm2835_hw.h"
 #include "ev_queue.h"
 
-#define GPIO_PIN     RPI_GPIO_P1_08
-#define GPIO_DESC    "DAISY Interrupt line"
+#define GPIO_SLOT0_PIN     RPI_GPIO_P1_08
+#define GPIO_SLOT0_DESC    "DAISY Interrupt line"
 
 #define daisy_SPI_MODE_BITS	(SPI_CPOL | SPI_CPHA | SPI_CS_HIGH \
 				| SPI_NO_CS | SPI_3WIRE)

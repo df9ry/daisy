@@ -40,7 +40,8 @@ enum evq_event {
 	EVQ_TXFFAEM,
 	EVQ_TXFFAFULL,
 	EVQ_FFERR,
-	EVQ_WATCHDOG
+	EVQ_WATCHDOG,
+	EVQ_INTERRUPT
 };
 
 struct ev_queue {

@@ -65,7 +65,7 @@ void daisy_tx_timeout (struct net_device *dev)
 {
 	struct daisy_priv *priv = netdev_priv(dev);
 
-	if (!priv->stalled)
+	if (!(priv && (priv->stalled) && (priv->daisy_device)))
 		return;
 	if (tx_low_water_up(priv->daisy_device)) {
 		printk(KERN_INFO "daisy: Resume transmit\n");

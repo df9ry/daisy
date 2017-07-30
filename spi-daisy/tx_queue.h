@@ -91,8 +91,8 @@ static inline struct tx_entry *tx_entry_new(struct tx_queue *q) {
 	spin_unlock(&q->lock);
 	if (!e)
 		printk(KERN_ERR "spi-daisy: tx_entry_new() inconsistency\n");
-	printk(KERN_DEBUG "spi-daisy: tx_entry_new() semaphore is %i\n",
-			q->sem.count);
+	//printk(KERN_DEBUG "spi-daisy: tx_entry_new() semaphore is %i\n",
+	//		q->sem.count);
 	return e;
 }
 
@@ -114,8 +114,8 @@ static inline struct tx_entry *tx_entry_try_new(struct tx_queue *q) {
 	/**/ 	list_del_init(_e);
 	/**/ }
 	spin_unlock(&q->lock);
-	printk(KERN_DEBUG "spi-daisy: tx_entry_try_new() semaphore is %i\n",
-			q->sem.count);
+	//printk(KERN_DEBUG "spi-daisy: tx_entry_try_new() semaphore is %i\n",
+	//		q->sem.count);
 	return e;
 }
 

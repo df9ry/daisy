@@ -228,17 +228,16 @@ struct daisy_dev *daisy_open_device(uint16_t slot)
 	if (!dd->kobj)
 		goto out_tx_queue_del;
 
-	bcm2835_gpio_fsel(GPIO_PIN, BCM2835_GPIO_FSEL_ALT0);
 
-	if (gpio_request(GPIO_PIN, GPIO_DESC))
+	if (gpio_request(GPIO_SLOT0_PIN, GPIO_SLOT0_DESC))
 		goto out_kobject_put;
 
-	dd->irq = gpio_to_irq(GPIO_PIN);
+	dd->irq = gpio_to_irq(GPIO_SLOT0_PIN);
 	if (dd->irq < 0)
 		goto out_gpio_free;
 
 	if (request_irq(dd->irq, (irq_handler_t)irq_handler, IRQF_TRIGGER_FALLING,
-			GPIO_DESC, dd))
+			GPIO_SLOT0_DESC, dd))
 		goto out_free_irq;
 
 	return dd;
@@ -247,8 +246,7 @@ out_free_irq:
 	free_irq(dd->irq, dd);
 	dd->irq = 0;
 out_gpio_free:
-	bcm2835_gpio_fsel(GPIO_PIN, BCM2835_GPIO_FSEL_INPT);
-	gpio_free(GPIO_PIN);
+	gpio_free(GPIO_SLOT0_PIN);
 out_kobject_put:
 	kobject_put(dd->kobj);
 	dd->kobj = NULL;
@@ -271,7 +269,7 @@ void daisy_close_device(struct daisy_dev *dd)
 			dd->irq = 0;
 		}
 		dd->irq = 0;
-		gpio_free(GPIO_PIN);
+		gpio_free(GPIO_SLOT0_PIN);
 		if (dd->kobj) {
 			kobject_put(dd->kobj);
 			dd->kobj = NULL;
