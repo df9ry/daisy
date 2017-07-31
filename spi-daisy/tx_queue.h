@@ -23,6 +23,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/semaphore.h>
+#include <linux/ip.h>
 
 #include "spi-daisy.h"
 
@@ -127,6 +128,9 @@ static inline struct tx_entry *tx_entry_try_new(struct tx_queue *q) {
 static inline void tx_entry_del(struct tx_entry *e) {
 	struct tx_queue *q = e->queue;
 
+	if (e->skb)
+		dev_kfree_skb(e->skb);
+	e->skb = NULL;
 	spin_lock(&q->lock);
 	/**/ list_add_tail(&e->list, &q->free);
 	/**/ up(&q->sem);
@@ -172,6 +176,33 @@ static inline struct tx_entry *tx_entry_get(struct tx_queue *q) {
 	/**/ }
 	spin_unlock(&q->lock);
 	return e;
+}
+
+/**
+ * Return a tx_entry that was previous read by tx_entry_get() to the tx_queue.
+ * @param q Pointer to the tx_queue.
+ * @param e Pointer to the tx_entry to put back.
+ */
+static inline void tx_entry_put_back(struct tx_entry *e) {
+	struct tx_queue *q = e->queue;
+
+	spin_lock(&q->lock);
+	/**/ list_add(&e->list, &q->prio);
+	spin_unlock(&q->lock);
+}
+
+/**
+ * Check if a new tx_entry could be processed from the tx_queue.
+ * @param q Pointer to the tx_queue.
+ * @return True if data could be read from the tx_queue.
+ */
+static inline bool tx_entry_can_get(struct tx_queue *q) {
+	bool res = 0;
+
+	spin_lock(&q->lock);
+	/**/ res = !(list_empty(&q->prio) && list_empty(&q->fifo));
+	spin_unlock(&q->lock);
+	return res;
 }
 
 #endif /* _TX_QUEUE_H_ */

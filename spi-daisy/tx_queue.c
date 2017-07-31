@@ -18,7 +18,6 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/ip.h>
 
 #include "tx_queue.h"
 

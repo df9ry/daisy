@@ -25,8 +25,10 @@
 #include "bcm2835_hw.h"
 #include "ev_queue.h"
 
-#define GPIO_SLOT0_PIN     RPI_GPIO_P1_08
+#define GPIO_SLOT0_PIN     RPI_GPIO_P1_15
 #define GPIO_SLOT0_DESC    "DAISY Interrupt line"
+
+#define IO_MAX 64
 
 #define daisy_SPI_MODE_BITS	(SPI_CPOL | SPI_CPHA | SPI_CS_HIGH \
 				| SPI_NO_CS | SPI_3WIRE)
@@ -34,22 +36,22 @@
 #define RFM22B_REG_DEVICE_STATUS    0x02
 
 #define RFM22B_REG_INTERRUPT_STATUS 0x03
-#define RFM22B_POR                 (1<<0)
-#define RFM22B_CHIPRDY             (1<<1)
-#define RFM22B_LBD                 (1<<2)
-#define RFM22B_WUT                 (1<<3)
-#define RFM22B_RSSI                (1<<4)
-#define RFM22B_PREAINVAL           (1<<5)
-#define RFM22B_PREAVAL             (1<<6)
-#define RFM22B_SWDET               (1<<7)
-#define RFM22B_CRCERROR            (1<<8)
-#define RFM22B_PKVALID             (1<<9)
-#define RFM22B_PKSENT              (1<<10)
-#define RFM22B_EXT                 (1<<11)
-#define RFM22B_RXFFAFUL            (1<<12)
-#define RFM22B_TXFFAEM             (1<<13)
-#define RFM22B_TXFFAFULL           (1<<14)
-#define RFM22B_FFERR               (1<<15)
+#define RFM22B_IPOR                (1<<0)
+#define RFM22B_ICHIPRDY            (1<<1)
+#define RFM22B_ILBD                (1<<2)
+#define RFM22B_IWUT                (1<<3)
+#define RFM22B_IRSSI               (1<<4)
+#define RFM22B_IPREAINVAL          (1<<5)
+#define RFM22B_IPREAVAL            (1<<6)
+#define RFM22B_ISWDET              (1<<7)
+#define RFM22B_ICRCERROR           (1<<8)
+#define RFM22B_IPKVALID            (1<<9)
+#define RFM22B_IPKSENT             (1<<10)
+#define RFM22B_IEXT                (1<<11)
+#define RFM22B_IRXFFAFUL           (1<<12)
+#define RFM22B_ITXFFAEM            (1<<13)
+#define RFM22B_ITXFFAFULL          (1<<14)
+#define RFM22B_IFFERR              (1<<15)
 
 #define RFM22B_REG_INTERRUPT_ENABLE 0x05
 #define RFM22B_ENPOR               (1<<0)
@@ -64,7 +66,7 @@
 #define RFM22B_ENPKVALID           (1<<9)
 #define RFM22B_ENPKSENT            (1<<10)
 #define RFM22B_ENEXT               (1<<11)
-#define RFM22B_ENRXFFAFUL          (1<<12)
+#define RFM22B_ENRXFFAFULL         (1<<12)
 #define RFM22B_ENTXFFAEM           (1<<13)
 #define RFM22B_ENTXFFAFULL         (1<<14)
 #define RFM22B_ENFFERR             (1<<15)
@@ -85,6 +87,24 @@
 #define RFM22B_ENLBD2              (1<<14)
 #define RFM22B_SWRES               (1<<15)
 
+#define RFM22B_REG_RSSI             0x26
+
+#define RFM22B_REG_RSSI_TH          0x27
+
+#define RFM22B_DATA_ACCESS_CONTROL  0x30
+#define RFM22B_CRC_NONE             0x00
+#define RFM22B_CRC_CCITT            0x04
+#define RFM22B_CRC_CRC16            0x05
+#define RFM22B_CRC_IEC16            0x06
+#define RFM22B_CRC_BIACHEVA         0x07
+#define RFM22B_ENPACTX             (1<<3)
+#define RFM22B_SKIP2PH             (1<<4)
+#define RFM22B_CRCDONLY            (1<<5)
+#define RFM22B_LSBFRST             (1<<6)
+#define RFM22B_ENPACRX             (1<<7)
+
+#define RFM22B_TXPKLEN              0x3e
+
 #define RFM22B_REG_MODULATION_MODE  0x70
 #define RFM22B_DTMOD_MASK           0x0081
 #define RFM22B_DTMOD_DIRECT_GPIO    0x0000
@@ -92,7 +112,34 @@
 #define RFM22B_DTMOD_FIFO           0x0080
 #define RFM22B_DTMOD_PN9            0x0081
 
+#define RFM22B_REG_FIFO             0x7f
+#define RFM22B_WRITE_FLAG           0x80
+
+#define RFM22B_ENINTR \
+	(RFM22B_ENPOR\
+	|RFM22B_ENCHIPRDY\
+	|RFM22B_ENSWDET\
+	|RFM22B_ENCRCERROR\
+	|RFM22B_ENPKVALID\
+	|RFM22B_ENPKSENT\
+	|RFM22B_ENRXFFAFULL\
+	|RFM22B_ENTXFFAEM\
+	|RFM22B_ENTXFFAFULL\
+	|RFM22B_ENFFERR)
+
+	//RFM22B_ENRSSI      |
+	//RFM22B_ENPREAINVAL |
+	//RFM22B_ENPREAVAL   |
+
 struct net_device_stats;
+
+extern u8 tx_buffer[IO_MAX+2];
+extern u8 rx_buffer[IO_MAX+2];
+
+enum automaton_state {
+	STATUS_IDLE,
+	STATUS_SEND
+};
 
 struct daisy_spi {
 	struct platform_device  *pdev;
@@ -100,10 +147,6 @@ struct daisy_spi {
 	struct clk              *clk;
 	uint32_t                 spi_hz;
 	bool                     speed_lock;
-};
-
-enum automaton_state {
-	STATUS_IDLE = 0,
 };
 
 struct daisy_dev {
@@ -120,7 +163,14 @@ struct daisy_dev {
 	struct ev_queue          evq;
 	struct tasklet_struct    tasklet;
 	struct timer_list        watchdog;
-	unsigned long            timeout;
+	volatile unsigned long   timeout;
+	union {
+		struct tx_entry         *tx_entry;
+		struct rx_entry         *rx_entry;
+	};
+	int                      pkg_len;
+	int                      pkg_idx;
+	u8                      *pkg_ptr;
 };
 
 extern irqreturn_t irq_handler(int irq, void *_dd, struct pt_regs *regs);

@@ -33,6 +33,7 @@
 #include "bcm2835.h"
 #include "spi.h"
 #include "trace.h"
+#include "automaton.h"
 
 static struct daisy_dev daisy_slots[N_SLOTS];
 
@@ -50,36 +51,23 @@ void daisy_device_up(struct daisy_dev *dd)
 	dd->state = STATUS_IDLE;
 	ev_queue_init(&dd->evq);
 	tasklet_init(&dd->tasklet, tasklet, (unsigned long)dd);
-	dd->timeout = jiffies + DEFAULT_WATCHDOG;
+	dd->timeout = jiffies + DEFAULT_TIMER_TICK;
 	init_timer(&dd->watchdog);
 	dd->watchdog.data = (unsigned long)dd;
 	dd->watchdog.expires = dd->timeout;
 	dd->watchdog.function = watchdog;
-	daisy_set_register8(dd, RFM22B_REG_DEVICE_STATUS, 0x00);
+	// Device reset:
+	daisy_set_bits16(dd, RFM22B_REG_OPERATING_MODE, RFM22B_SWRES);
 	// Assure, that FIFO mode is selected:
 	daisy_set_mbits16(dd, RFM22B_REG_MODULATION_MODE,
 			RFM22B_DTMOD_MASK, RFM22B_DTMOD_FIFO);
-	// Program operation mode:
-	daisy_set_register16(dd, RFM22B_REG_OPERATING_MODE,
-			RFM22B_ENLDM      |
-			RFM22B_RXMPK      |
-			RFM22B_XTON       |
-			RFM22B_PLLON      |
-			RFM22B_RXON);
 	// Clear pending interrupt status flags:
 	daisy_set_register16(dd, RFM22B_REG_INTERRUPT_STATUS, 0x0000);
-	// Enable interrupts:
-	daisy_set_register16(dd, RFM22B_REG_INTERRUPT_ENABLE,
-			RFM22B_ENCRCERROR |
-			RFM22B_ENPKVALID  |
-			RFM22B_ENPKSENT   |
-			RFM22B_ENRXFFAFUL |
-			RFM22B_ENTXFFAEM  |
-			RFM22B_ENFFERR    |
-			RFM22B_ENCHIPRDY  |
-			RFM22B_ENRSSI     |
-			RFM22B_ENSWDET);
-	ev_queue_put(&dd->evq, EVQ_WATCHDOG);
+	// Enable relevant interrupts:
+	daisy_set_register16(dd, RFM22B_REG_INTERRUPT_ENABLE, RFM22B_ENINTR);
+
+	rx_start(dd);
+	// Enable watchdog:
 	tasklet_hi_schedule(&dd->tasklet);
 	add_timer(&dd->watchdog);
 }
@@ -236,6 +224,9 @@ struct daisy_dev *daisy_open_device(uint16_t slot)
 	if (dd->irq < 0)
 		goto out_gpio_free;
 
+	// Set pin to input and activate the pullup resistor.
+    bcm2835_gpio_fsel(GPIO_SLOT0_PIN, BCM2835_GPIO_FSEL_ALT0);
+
 	if (request_irq(dd->irq, (irq_handler_t)irq_handler, IRQF_TRIGGER_FALLING,
 			GPIO_SLOT0_DESC, dd))
 		goto out_free_irq;
@@ -247,6 +238,7 @@ out_free_irq:
 	dd->irq = 0;
 out_gpio_free:
 	gpio_free(GPIO_SLOT0_PIN);
+    bcm2835_gpio_fsel(GPIO_SLOT0_PIN, BCM2835_GPIO_FSEL_INPT);
 out_kobject_put:
 	kobject_put(dd->kobj);
 	dd->kobj = NULL;
@@ -270,6 +262,7 @@ void daisy_close_device(struct daisy_dev *dd)
 		}
 		dd->irq = 0;
 		gpio_free(GPIO_SLOT0_PIN);
+	    bcm2835_gpio_fsel(GPIO_SLOT0_PIN, BCM2835_GPIO_FSEL_INPT);
 		if (dd->kobj) {
 			kobject_put(dd->kobj);
 			dd->kobj = NULL;

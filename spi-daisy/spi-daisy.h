@@ -24,7 +24,7 @@
 #define DRV_NAME	"spi-daisy"
 
 #define MIN_SPEED_HZ         50000
-#define MAX_SPEED_HZ       5000000
+#define MAX_SPEED_HZ        500000
 #define N_SLOTS                  2
 #define MAX_PKG_LEN            256
 
@@ -32,7 +32,8 @@
 #define DEFAULT_TX_QUEUE_SIZE   16
 #define DEFAULT_TX_LOW_WATER_DN  2
 #define DEFAULT_TX_LOW_WATER_UP  6
-#define DEFAULT_WATCHDOG        10
+#define DEFAULT_TIMER_TICK      25
+#define DEFAULT_TX_TIMEOUT     250
 
 struct daisy_dev;
 struct daisy_spi;
@@ -293,7 +294,37 @@ static inline uint16_t daisy_get_register16(struct daisy_dev *dd,
 	uint8_t tx[3] = { reg,  0x00, 0x00  };
 	uint8_t rx[3] = { 0x00, 0x00, 0x00  };
 	daisy_transfer(dd, tx, rx, 3);
-	return (rx[1] << 8) | rx[2];
+	return ((rx[1] << 8) & 0xff00) | rx[2];
+}
+
+/**
+ * Clear RX FIFO.
+ */
+static inline void daisy_clear_rx_fifo(struct daisy_dev *dd)
+{
+	uint8_t x1[2] = { 0x08, 0x00  };
+	uint8_t x2[2] = { 0x00, 0x00  };
+	daisy_transfer(dd, x1, x2, 2);
+	x2[0]  = 0x88;
+	x2[1] |= 0x02;
+	daisy_transfer(dd, x2, x1, 2);
+	x2[1] &= 0xfd;
+	daisy_transfer(dd, x2, x1, 2);
+}
+
+/**
+ * Clear TX FIFO.
+ */
+static inline void daisy_clear_tx_fifo(struct daisy_dev *dd)
+{
+	uint8_t x1[2] = { 0x08, 0x00  };
+	uint8_t x2[2] = { 0x00, 0x00  };
+	daisy_transfer(dd, x1, x2, 2);
+	x2[0]  = 0x88;
+	x2[1] |= 0x01;
+	daisy_transfer(dd, x2, x1, 2);
+	x2[1] &= 0xfe;
+	daisy_transfer(dd, x2, x1, 2);
 }
 
 /**
