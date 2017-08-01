@@ -45,6 +45,8 @@ static void daisy_spi_handle_err(struct spi_master  *master,
 
 void daisy_device_up(struct daisy_dev *dd)
 {
+	u16 x;
+
 	if (!dd)
 		return;
 	printk(KERN_DEBUG DRV_NAME ": Called daisy_device_up()\n");
@@ -57,10 +59,24 @@ void daisy_device_up(struct daisy_dev *dd)
 	dd->watchdog.expires = dd->timeout;
 	dd->watchdog.function = watchdog;
 	// Device reset:
-	daisy_set_bits16(dd, RFM22B_REG_OPERATING_MODE, RFM22B_SWRES);
+	daisy_set_bits8(dd, RFM22B_REG_OP_MODE_1, RFM22B_SWRES);
+	while (daisy_get_register8(dd, RFM22B_REG_OP_MODE_1) & RFM22B_SWRES);
 	// Assure, that FIFO mode is selected:
-	daisy_set_mbits16(dd, RFM22B_REG_MODULATION_MODE,
-			RFM22B_DTMOD_MASK, RFM22B_DTMOD_FIFO);
+	x = daisy_get_register8(dd, RFM22B_REG_OP_MODE_1);
+	x &= ~RFM22B_DTMOD_MASK;
+	x |=  RFM22B_DTMOD_FIFO;
+	daisy_set_register8(dd, RFM22B_REG_OP_MODE_1, x);
+	// Disable package handler:
+	daisy_set_register8(dd, RFM22B_DATA_ACCESS_CONTROL, RFM22B_LSBFRST);
+	// Set GFSK modulation:
+	x = daisy_get_register8(dd, RFM22B_REG_MOD_MODE_2);
+	x &= ~RFM22B_MODTYP_MASK;
+	x |=  RFM22B_MODTYP_GFSK;
+	daisy_set_register8(dd, RFM22B_REG_MOD_MODE_2, x);
+	// Set multipackage and autotx:
+	daisy_set_register8(dd, RFM22B_REG_OP_MODE_2, RFM22B_RXMPK | RFM22B_AUTOTX);
+	// Enter ready mode:
+	daisy_set_register8(dd, RFM22B_REG_OP_MODE_1, RFM22B_XTON);
 	// Clear pending interrupt status flags:
 	daisy_set_register16(dd, RFM22B_REG_INTERRUPT_STATUS, 0x0000);
 	// Enable relevant interrupts:
@@ -83,7 +99,7 @@ void daisy_device_down(struct daisy_dev *dd)
 	ev_queue_init(&dd->evq);
 	daisy_set_register16(dd, RFM22B_REG_INTERRUPT_ENABLE, 0x0000);
 	daisy_set_register16(dd, RFM22B_REG_INTERRUPT_STATUS, 0x0000);
-	daisy_set_register16(dd, RFM22B_REG_OPERATING_MODE,   0x0000);
+	daisy_set_register16(dd, RFM22B_REG_OP_MODE_1,        0x0000);
 }
 EXPORT_SYMBOL_GPL(daisy_device_down);
 

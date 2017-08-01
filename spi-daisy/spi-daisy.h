@@ -152,23 +152,6 @@ extern void daisy_lock_speed(struct daisy_spi *spi);
 extern void daisy_unlock_speed(struct daisy_spi *spi);
 
 /**
- * Set multiple bits in 8 bit register.
- */
-static inline void daisy_set_mbits8(struct daisy_dev *dd,
-								   	   	   uint8_t    reg,
-										   uint8_t    mask,
-										   uint8_t    val)
-{
-	uint8_t x1[2] = { reg,  0x00 };
-	uint8_t x2[2] = { 0x00, 0x00 };
-	daisy_transfer(dd, x1, x2, 2);
-	x2[0] = reg | 0x80;
-	x2[1] &= ~mask;
-	x2[1] |= val;
-	daisy_transfer(dd, x2, x1, 2);
-}
-
-/**
  * Set bits in 8 bit register.
  */
 static inline void daisy_set_bits8(struct daisy_dev *dd,
@@ -232,25 +215,6 @@ static inline void daisy_set_register16(struct daisy_dev *dd,
 	uint8_t tx[3] = { reg | 0x80, (val >> 8) & 0x00ff, val & 0x00ff  };
 	uint8_t rx[3] = { 0x00,       0x00,                0x00          };
 	daisy_transfer(dd, tx, rx, 3);
-}
-
-/**
- * Set multiple bits in 16 bit register.
- */
-static inline void daisy_set_mbits16(struct daisy_dev *dd,
-								   	   	    uint8_t    reg,
-										    uint16_t   mask,
-										    uint16_t   val)
-{
-	uint8_t x1[3] = { reg,  0x00, 0x00 };
-	uint8_t x2[3] = { 0x00, 0x00, 0x00 };
-	daisy_transfer(dd, x1, x2, 3);
-	x2[0] = reg | 0x80;
-	x2[1] &= ~((mask >> 8) & 0x00ff);
-	x2[2] &= ~(mask & 0x00ff);
-	x2[1] |= ((val >> 8) & 0x00ff);
-	x2[2] |= (val & 0x00ff);
-	daisy_transfer(dd, x2, x1, 3);
 }
 
 /**

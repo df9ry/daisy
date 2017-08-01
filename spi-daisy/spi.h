@@ -71,21 +71,23 @@
 #define RFM22B_ENTXFFAFULL         (1<<14)
 #define RFM22B_ENFFERR             (1<<15)
 
-#define RFM22B_REG_OPERATING_MODE   0x07
+#define RFM22B_REG_OP_MODE_1        0x07
+#define RFM22B_XTON                (1<<0)
+#define RFM22B_PLLON               (1<<1)
+#define RFM22B_RXON                (1<<2)
+#define RFM22B_TXON                (1<<3)
+#define RFM22B_X32KSEL             (1<<4)
+#define RFM22B_ENWT                (1<<5)
+#define RFM22B_ENLBD2              (1<<6)
+#define RFM22B_SWRES               (1<<7)
+
+#define RFM22B_REG_OP_MODE_2        0x08
 #define RFM22B_FFCLRTX             (1<<0)
 #define RFM22B_FFCLRRX             (1<<1)
 #define RFM22B_ENLDM               (1<<2)
 #define RFM22B_AUTOTX              (1<<3)
 #define RFM22B_RXMPK               (1<<4)
 #define RFM22B_ANTDIV              (1<<5)
-#define RFM22B_XTON                (1<<8)
-#define RFM22B_PLLON               (1<<9)
-#define RFM22B_RXON                (1<<10)
-#define RFM22B_TXON                (1<<11)
-#define RFM22B_X32KSEL             (1<<12)
-#define RFM22B_ENWT                (1<<13)
-#define RFM22B_ENLBD2              (1<<14)
-#define RFM22B_SWRES               (1<<15)
 
 #define RFM22B_REG_RSSI             0x26
 
@@ -105,12 +107,24 @@
 
 #define RFM22B_TXPKLEN              0x3e
 
-#define RFM22B_REG_MODULATION_MODE  0x70
-#define RFM22B_DTMOD_MASK           0x0081
-#define RFM22B_DTMOD_DIRECT_GPIO    0x0000
-#define RFM22B_DTMOD_DIRECT_SDI     0x0001
-#define RFM22B_DTMOD_FIFO           0x0080
-#define RFM22B_DTMOD_PN9            0x0081
+#define RFM22B_REG_MOD_MODE_2       0x71
+#define RFM22B_MODTYP_MASK          0x03
+#define RFM22B_MODTYP_UNMODULATED   0x00
+#define RFM22B_MODTYP_OOK           0x01
+#define RFM22B_MODTYP_FSK           0x02
+#define RFM22B_MODTYP_GFSK          0x03
+#define RFM22B_FD_8                (1<<2)
+#define RFM22B_EINVERT             (1<<3)
+#define RFM22B_DTMOD_MASK           0x30
+#define RFM22B_DTMOD_DIRECT_GPIO    0x00
+#define RFM22B_DTMOD_DIRECT_SDI     0x10
+#define RFM22B_DTMOD_FIFO           0x20
+#define RFM22B_DTMOD_PN9            0x30
+#define RFM22B_TRCLK_TX_DCLK_MASK   0xc0
+#define RFM22B_TRCLK_TX_DCLK_NONE   0x00
+#define RFM22B_TRCLK_TX_DCLK_GPIO   0x40
+#define RFM22B_TRCLK_TX_DCLK_SDO    0x80
+#define RFM22B_TRCLK_TX_DCLK_NIRQ   0xc0
 
 #define RFM22B_REG_FIFO             0x7f
 #define RFM22B_WRITE_FLAG           0x80

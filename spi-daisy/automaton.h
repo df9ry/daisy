@@ -42,11 +42,7 @@ static inline void rx_start(struct daisy_dev *dd) {
 	// Clear the RX FIFO:
 	daisy_clear_rx_fifo(dd);
 	// Drop the PTT and listen:
-	daisy_set_register16(dd, RFM22B_REG_OPERATING_MODE,
-			RFM22B_RXMPK      |
-			RFM22B_XTON       |
-			RFM22B_PLLON      |
-			RFM22B_RXON);
+	daisy_set_register8(dd, RFM22B_REG_OP_MODE_1, RFM22B_RXON);
 	dd->state = STATUS_IDLE;
 	ev_queue_put(&dd->evq, EVQ_STATUS_IDLE);
 	dd->timeout = jiffies + DEFAULT_TIMER_TICK;
@@ -89,10 +85,7 @@ static inline void tx_start(struct daisy_dev *dd) {
 	// Clear the TX FIFO:
 	daisy_clear_tx_fifo(dd);
 	// Push the PTT:
-	daisy_set_register16(dd, RFM22B_REG_OPERATING_MODE,
-			RFM22B_AUTOTX |
-			RFM22B_XTON   |
-			RFM22B_PLLON);
+	daisy_set_register8(dd, RFM22B_REG_OP_MODE_1, RFM22B_TXON);
 	// Fill the TX FIFO:
 	daisy_set_register8(dd, RFM22B_TXPKLEN, dd->pkg_len);
 	tx_buffer[0] = RFM22B_REG_FIFO | RFM22B_WRITE_FLAG;
@@ -100,7 +93,7 @@ static inline void tx_start(struct daisy_dev *dd) {
 	memset(&rx_buffer[0], 0x55, cb_to_write + 1);
 	daisy_transfer(dd, tx_buffer, rx_buffer, cb_to_write);
 	dd->state = STATUS_SEND;
-	ev_queue_put_op(&dd->evq, EVQ_STATUS_SEND, cb_to_write);
+	ev_queue_put_op(&dd->evq, EVQ_STATUS_SEND, cb_to_write );
 	dd->timeout = jiffies + DEFAULT_TX_TIMEOUT;
 }
 
