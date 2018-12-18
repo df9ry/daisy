@@ -170,7 +170,6 @@ struct daisy_dev {
 	struct spi_master       *master;
 	struct rx_queue         *rx_queue;
 	struct tx_queue         *tx_queue;
-	struct net_device_stats *stats;
 	uint16_t                 slot;
 	short int                irq;
 	enum automaton_state     state;
@@ -182,9 +181,7 @@ struct daisy_dev {
 		struct tx_entry         *tx_entry;
 		struct rx_entry         *rx_entry;
 	};
-	int                      pkg_len;
 	int                      pkg_idx;
-	u8                      *pkg_ptr;
 };
 
 extern irqreturn_t irq_handler(int irq, void *_dd, struct pt_regs *regs);

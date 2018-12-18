@@ -27,6 +27,8 @@
 #include "tx_queue.h"
 #include "ev_queue.h"
 
+static inline void on_idle_poll(struct daisy_dev *dd);
+
 static inline bool squelch_open(struct daisy_dev *dd) {
 #if 0
 	u16 _rssi = daisy_get_register16(dd, RFM22B_REG_RSSI);
@@ -50,51 +52,64 @@ static inline void rx_start(struct daisy_dev *dd) {
 
 static inline void tx_start(struct daisy_dev *dd) {
 	int cb_to_write;
+	u8 *pb_tx;
 
-	if (!dd->pkg_ptr) {
-		ev_queue_put(&dd->evq, EVQ_PKG_NULL);
-		tx_entry_del(dd->tx_entry);
-		dd->tx_entry = NULL;
-		if (dd->stats) {
-			dd->stats->tx_errors ++;
-		}
-		rx_start(dd);
+	// Support spurious interrupts:
+	if (!dd->tx_entry) {
+		ev_queue_put(&dd->evq, EVQ_ENTRY_NULL);
 		return;
 	}
+
 	// Calculate how many octets to write now:
-	cb_to_write = (dd->pkg_len > IO_MAX) ? IO_MAX : dd->pkg_len;
-	if (cb_to_write == 0) {
-		ev_queue_put(&dd->evq, EVQ_EMPTY_PKG);
-		tx_entry_del(dd->tx_entry);
-		dd->tx_entry = NULL;
-		rx_start(dd);
-		return;
-	}
-	if ((cb_to_write < 0) || (cb_to_write > IO_MAX)) {
-		ev_queue_put(&dd->evq, EVQ_INVAL_WRCOUNT);
-		tx_entry_del(dd->tx_entry);
-		dd->tx_entry = NULL;
-		if (dd->stats) {
-			dd->stats->tx_errors ++;
-			dd->stats->tx_dropped ++;
-		}
-		rx_start(dd);
-		return;
-	}
-	ev_queue_put_op(&dd->evq, EVQ_TXSTART, cb_to_write);
-	// Clear the TX FIFO:
-	daisy_clear_tx_fifo(dd);
-	// Push the PTT:
-	daisy_set_register8(dd, RFM22B_REG_OP_MODE_1, RFM22B_TXON);
+	cb_to_write = dd->tx_entry->pkg_len;
+	if (cb_to_write > IO_MAX)
+		cb_to_write = IO_MAX;
+
 	// Fill the TX FIFO:
-	daisy_set_register8(dd, RFM22B_TXPKLEN, dd->pkg_len);
-	tx_buffer[0] = RFM22B_REG_FIFO | RFM22B_WRITE_FLAG;
-	memcpy(&tx_buffer[1], dd->pkg_ptr, cb_to_write);
-	memset(&rx_buffer[0], 0x55, cb_to_write + 1);
-	daisy_transfer(dd, tx_buffer, rx_buffer, cb_to_write);
+	pb_tx = dd->tx_entry->pkg;
+	(*pb_tx) = RFM22B_REG_FIFO | RFM22B_WRITE_FLAG;
+	daisy_transfer(dd, pb_tx, rx_buffer, cb_to_write);
+	dd->pkg_idx = cb_to_write + 1;
 	dd->state = STATUS_SEND;
 	ev_queue_put_op(&dd->evq, EVQ_STATUS_SEND, cb_to_write );
+
 	dd->timeout = jiffies + DEFAULT_TX_TIMEOUT;
+}
+
+static inline void tx_fifo(struct daisy_dev *dd) {
+	int cb_to_write;
+	u8 *pb_tx;
+
+	// Support spurious interrupts:
+	if (!dd->tx_entry) {
+		ev_queue_put(&dd->evq, EVQ_ENTRY_NULL);
+		return;
+	}
+
+	// Calculate how many octets to write now:
+	cb_to_write = dd->tx_entry->pkg_len - dd->pkg_idx;
+	if (cb_to_write > IO_MAX)
+		cb_to_write = IO_MAX;
+
+	// Fill the TX FIFO:
+	pb_tx = &dd->tx_entry->pkg[dd->pkg_idx - 1];
+	(*pb_tx) = RFM22B_REG_FIFO | RFM22B_WRITE_FLAG;
+	daisy_transfer(dd, pb_tx, rx_buffer, cb_to_write);
+	dd->pkg_idx = cb_to_write + 1;
+
+	dd->timeout = jiffies + DEFAULT_TX_TIMEOUT;
+}
+
+static inline void tx_sent(struct daisy_dev *dd) {
+	// Support spurious interrupts:
+	if (!dd->tx_entry) {
+		ev_queue_put(&dd->evq, EVQ_ENTRY_NULL);
+		return;
+	}
+
+	tx_entry_del(dd->tx_entry);
+	dd->tx_entry = NULL;
+	on_idle_poll(dd);
 }
 
 static inline void on_idle_poll(struct daisy_dev *dd) {
@@ -105,19 +120,7 @@ static inline void on_idle_poll(struct daisy_dev *dd) {
 	dd->tx_entry = tx_entry_get(dd->tx_queue);
 	if (!dd->tx_entry)
 		return;
-	if (!dd->tx_entry->skb) {
-		ev_queue_put(&dd->evq, EVQ_SKB_NULL);
-		tx_entry_del(dd->tx_entry);
-		dd->tx_entry = NULL;
-		if (dd->stats) {
-			dd->stats->tx_dropped ++;
-			dd->stats->tx_errors ++;
-		}
-		return;
-	}
-	dd->pkg_len = dd->tx_entry->skb->len;
 	dd->pkg_idx = 0;
-	dd->pkg_ptr = dd->tx_entry->skb->data;
 	tx_start(dd);
 }
 
@@ -126,13 +129,8 @@ static inline void on_send_timeout(struct daisy_dev *dd) {
 	if (dd->tx_entry) {
 		tx_entry_del(dd->tx_entry);
 		dd->tx_entry = NULL;
-		if (dd->stats) {
-			dd->stats->tx_aborted_errors ++;
-			dd->stats->tx_dropped ++;
-			dd->stats->tx_errors ++;
-		}
 	}
-	rx_start(dd);
+	on_idle_poll(dd);
 }
 
 #endif //_AUTOMATON_H_//

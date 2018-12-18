@@ -59,14 +59,6 @@ extern void daisy_device_up(struct daisy_dev *dd);
 extern void daisy_device_down(struct daisy_dev *dd);
 
 /**
- * Register the net_device_stats for the device.
- * @param dd    Device to register the net_dev_stats for.
- * @param stats Struct net_device_stats for the device.
- */
-extern void daisy_register_stats(struct daisy_dev *dd,
-		struct net_device_stats *stats);
-
-/**
  * Common utility for SPI IO.
  * @dd Daisy device for the transfer.
  * @tx SPI transmit buffer.

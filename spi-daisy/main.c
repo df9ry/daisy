@@ -20,7 +20,6 @@
 #include <linux/clk.h>
 #include <linux/spinlock.h>
 #include <linux/of.h>
-#include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
@@ -102,31 +101,6 @@ void daisy_device_down(struct daisy_dev *dd)
 	daisy_set_register16(dd, RFM22B_REG_OP_MODE_1,        0x0000);
 }
 EXPORT_SYMBOL_GPL(daisy_device_down);
-
-void daisy_register_stats(struct daisy_dev        *dd,
-						  struct net_device_stats *stats)
-{
-	if (dd)
-		dd->stats = stats;
-}
-EXPORT_SYMBOL_GPL(daisy_register_stats);
-
-struct sk_buff *daisy_read(struct daisy_dev *dd) {
-	struct rx_entry *e = rx_entry_get(dd->rx_queue);
-	struct sk_buff  *skb;
-
-	if (!e)
-		return NULL;
-	skb = e->skb;
-	e->skb = dev_alloc_skb(MAX_PKG_LEN+2);
-	if (!e->skb) {
-		if (printk_ratelimit())
-			printk(KERN_ERR "spi-daisy: Unable to alloc socket buffer\n");
-	}
-	rx_entry_del(e);
-	return skb;
-}
-EXPORT_SYMBOL_GPL(daisy_read);
 
 int daisy_write(struct daisy_dev *dd, struct sk_buff *skb, bool priority)
 {

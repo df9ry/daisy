@@ -21,5 +21,5 @@ spi-daisy-objs += rx_queue.o
 spi-daisy-objs += tx_queue.o
 spi-daisy-objs += intr.o
 spi-daisy-objs += trace.o
-spi-daisy-objs += phys_layer.o
+spi-daisy-objs += x8b10b.o
 spi-daisy-objs += main.o

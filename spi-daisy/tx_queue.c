@@ -49,17 +49,8 @@ struct tx_queue *tx_queue_new(size_t size) {
 }
 
 void tx_queue_del(struct tx_queue *q) {
-	int i;
-
 	if (!q)
 		return;
-	for (i = 0; i < q->size; i++) {
-		struct tx_entry *e = &q->data[i];
-		if (e->skb) {
-			dev_kfree_skb(e->skb);
-			e->skb = NULL;
-		}
-	} // end for //
 	kfree(q);
 }
 

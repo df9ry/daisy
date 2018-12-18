@@ -23,9 +23,10 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/semaphore.h>
-#include <linux/ip.h>
 
 #include "spi-daisy.h"
+
+#define MAX_PKG_SIZE 2000
 
 struct tx_queue;
 struct sk_buff;
@@ -36,7 +37,8 @@ struct sk_buff;
 struct tx_entry {
 	struct list_head   list;
 	struct tx_queue   *queue;
-	struct sk_buff    *skb;
+	u16                pkg_len;
+	u8                 pkg[MAX_PKG_SIZE];
 };
 
 /**
@@ -128,9 +130,6 @@ static inline struct tx_entry *tx_entry_try_new(struct tx_queue *q) {
 static inline void tx_entry_del(struct tx_entry *e) {
 	struct tx_queue *q = e->queue;
 
-	if (e->skb)
-		dev_kfree_skb(e->skb);
-	e->skb = NULL;
 	spin_lock(&q->lock);
 	/**/ list_add_tail(&e->list, &q->free);
 	/**/ up(&q->sem);

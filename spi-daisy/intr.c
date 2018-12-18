@@ -134,12 +134,6 @@ void tasklet(unsigned long _dd) {
 		case EVQ_ENTRY_NULL:
 			trace1("ENTRY_NULL", ee.timestamp);
 			break;
-		case EVQ_SKB_NULL:
-			trace1("SKB_NULL", ee.timestamp);
-			break;
-		case EVQ_PKG_NULL:
-			trace1("PKG_NULL", ee.timestamp);
-			break;
 		case EVQ_EMPTY_PKG:
 			trace1("EMPTY_PKG", ee.timestamp);
 			break;
@@ -204,11 +198,11 @@ irqreturn_t irq_handler(int irq, void *_dd, struct pt_regs *regs)
 	case STATUS_SEND:
 		if (is & RFM22B_IPKSENT) {
 			ev_queue_put(evq, EVQ_PKSENT);
-			///TODO: PKSENT
+			tx_sent(dd);
 		}
 		if (is & RFM22B_ITXFFAEM) {
 			ev_queue_put(evq, EVQ_TXFFAEM);
-			///TODO:TXFFAEM
+			tx_fifo(dd);
 		}
 		if (is & RFM22B_IFFERR) {
 			ev_queue_put(evq, EVQ_FFERR);
